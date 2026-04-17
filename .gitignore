@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pkl
+*.egg-info/
+.eggs/
+dist/
+build/
+*.log
+.ipynb_checkpoints/
+models/
+forecasts/
+results/
