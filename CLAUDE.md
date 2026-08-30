@@ -247,6 +247,8 @@ KRVZ (Tongariro), sorted: {ONTA,SHW} **0.8848**, {FWVZ,SHW} 0.8608, {FWVZ} 0.771
 
 **Landscape findings**: (1) **Perfect WIZ separation for both targets** — every WIZ-free pool outperforms every WIZ-containing pool (FWVZ: ≥0.886 vs ≤0.857; KRVZ: ≥0.674 vs ≤0.666). Whakaari membership is the single dominant pool factor; e.g. {SHW}→FWVZ drops 0.963→0.768 when WIZ is added. (2) Best pools are small and foreign: FWVZ ← {SHW} alone (0.963); KRVZ ← {ONTA,SHW} (0.885) — no NZ volcano. (3) Source value is non-additive; single-source ablation reshuffles once WIZ is out. (4) Curation alone lifts FWVZ 0.845→0.963 and KRVZ 0.649→0.885 — per the B.3 gate, phases C-E now target a small residual. **Selection-bias caveat**: the max over 15 pools scored on 2-3 target eruptions is an optimistic (oracle-curated) upper bound; Phase G must use a nested/held-out protocol for headline claims.
 
+**Nested (selection-bias-free) evaluation (2026-08-30)** (`phase_b_nested.py`, `forecasts/phase_b/nested_evaluation.csv`): for each target eruption, the pool is selected using only the *other* eruptions, then the held-out eruption is scored with that pool. **The curation result survives honest selection**: FWVZ nested 0.947 vs oracle 0.963 (full 0.845, no_WIZ 0.932); KRVZ nested 0.885 = oracle (full 0.649). Selection is stable across folds (FWVZ: cur_SHW 2/3 folds, cur_ONTA_SHW 1/3; KRVZ: cur_ONTA_SHW both folds). Selection-bias penalty ≤0.016 AUC — out-of-sample-selected curated pools beat the full pool by +0.10 (FWVZ) and +0.24 (KRVZ). This is the defensible headline version of the Phase B result.
+
 **B.2 results (2026-08-30)** (`forecasts/phase_b/mmd_*.csv`): RBF-MMD² between stations' standardized training features (1296 complete-case common features). Non-eruptive: FWVZ↔KRVZ are the closest pair (0.012); WIZ is *closer* to both targets (0.017-0.025) than ONTA/SHW (0.03-0.06). **Feature-space similarity does NOT predict transfer value**: Spearman(MMD, ablation lift) = 0.05 (non-eruptive) / 0.19 (pre-eruptive, n=4 samples per station — very noisy), n=8 pairs. WIZ sits close to the targets in background feature space yet transfers worst — so pool curation cannot be shortcut by MMD screening in this pool; the harm is likely in precursor *dynamics*, not feature distributions.
 
 ## Phase C Progress (2026-08-30) — negative result
@@ -264,7 +266,18 @@ KRVZ (Tongariro), sorted: {ONTA,SHW} **0.8848**, {FWVZ,SHW} 0.8608, {FWVZ} 0.771
 
 **Diagnosis**: not an FPR explosion — the opposite. Refined ensembles' consensus collapses in range (base: 2.9% of background windows >0.8; STRUT/SER: 0%; SER mean consensus 0.025 vs base 0.352). With only 8-12 positive windows from 2-3 eruptions, refinement (SER especially, in-sample balanced-acc 0.99) memorises those eruptions' exact feature signatures; the held-out eruption doesn't match them, so refined trees rarely fire — the ergodic generality of the source ensemble is erased. Classic few-shot overfit / catastrophic forgetting, exactly what the Marsden plan flagged as the core risk.
 
-**Interpretation for the paper**: with this few target eruptions, structural tree refinement destroys value while pool curation (Phase B) adds it — "choose your teachers, don't rewrite the lessons." Follow-up variants worth trying before closing C: (1) STRUT with the original divergence-to-source term or threshold shrinkage (interpolate old→new), (2) per-tree undersampled refinement sets to preserve ensemble diversity, (3) leaf-probability-only recalibration (no structural change — the mildest adaptation, close to tree-vote reweighting). Otherwise proceed to Phase D with C as the cautionary baseline.
+**Interpretation for the paper**: with this few target eruptions, structural tree refinement destroys value while pool curation (Phase B) adds it — "choose your teachers, don't rewrite the lessons."
+
+**Round 2 — regularised variants (2026-08-30)** (`phase_c_results_variants.csv`): leaf = calibration-only; strut_shrink = thresholds pulled halfway back to source; strut_us / ser_us = per-tree RandomUnderSampler(0.75) refinement sets (preserves ensemble diversity, mirrors source training).
+
+| target/base | base | leaf | strut_shrink | strut_us | ser_us |
+|---|---|---|---|---|---|
+| FWVZ/full | 0.845 | 0.623 | 0.646 | 0.620 | 0.835 |
+| FWVZ/no_WIZ | 0.932 | 0.807 | 0.855 | 0.928 | **0.959** |
+| KRVZ/full | 0.649 | 0.626 | 0.651 | **0.706** | **0.740** |
+| KRVZ/no_WIZ | 0.763 | 0.708 | 0.749 | 0.540 | 0.678 |
+
+**Round-2 findings**: (1) per-tree undersampling was the key fix — the diversity-collapse diagnosis was right; _us variants vastly outperform round-1 strut/ser. (2) **ser_us is the best refinement everywhere and beats its base in 2/4 configs** (FWVZ/no_WIZ 0.932→0.959, nearly the oracle pool 0.963; KRVZ/full 0.649→0.740), but degrades KRVZ/no_WIZ (0.763→0.678). (3) leaf-only and shrinkage are consistently at-or-below base. **Verdict**: refinement *can* add value on top of curation but is unstable with 2-3 target eruptions; picking "ser_us on the right base" post-hoc reintroduces selection bias — Phase G must nest this choice like the pool choice. Phase D should test whether boosting achieves the ser_us-style gain more reliably.
 
 ## Papers (in `papers/`)
 

@@ -122,22 +122,28 @@ def _best_threshold(v, y, w):
     return float(thr), float(gain[k])
 
 
-def strut(node, X, y, w, min_refit=MIN_REFIT):
-    """Refine thresholds/leaf probabilities in place, top-down."""
+def strut(node, X, y, w, min_refit=MIN_REFIT, refit=True, shrink=0.0):
+    """Refine thresholds/leaf probabilities in place, top-down.
+
+    refit=False only re-estimates leaf probabilities (calibration-only).
+    shrink in [0,1) pulls the refit threshold back toward the source value:
+    thr <- shrink*old + (1-shrink)*new (a cheap stand-in for STRUT's
+    divergence-to-source regularisation).
+    """
     if len(y) == 0:
         return  # no target data reaches here: keep source subtree
     if node['leaf']:
         node['proba'] = float((w * y).sum() / w.sum())
         return
     v = X[:, node['feature']]
-    if len(y) >= min_refit and y.min() != y.max():
+    if refit and len(y) >= min_refit and y.min() != y.max():
         thr, gain = _best_threshold(v, y.astype(float), w)
         if thr is not None and gain > 0:
-            node['threshold'] = thr
+            node['threshold'] = shrink * node['threshold'] + (1 - shrink) * thr
     node['proba'] = float((w * y).sum() / w.sum())
     go_left = v <= node['threshold']
-    strut(node['left'], X[go_left], y[go_left], w[go_left], min_refit)
-    strut(node['right'], X[~go_left], y[~go_left], w[~go_left], min_refit)
+    strut(node['left'], X[go_left], y[go_left], w[go_left], min_refit, refit, shrink)
+    strut(node['right'], X[~go_left], y[~go_left], w[~go_left], min_refit, refit, shrink)
 
 
 # ============================================================
@@ -195,21 +201,38 @@ def balanced_weights(y):
     return np.where(y, n / (2. * npos), n / (2. * nneg))
 
 
-def refine_ensemble(trees_fts, fM, y, method, random_state=0):
+def refine_ensemble(trees_fts, fM, y, method, random_state=0,
+                    resample_ratio=None, shrink=0.5):
     """Refine a list of (sklearn_clf, fts) with target data.
 
-    Returns list of (RefinableTree, fts). method: 'strut' | 'ser'.
+    Returns list of (RefinableTree, fts).
+    method: 'strut' | 'ser' | 'leaf' (calibration-only) | 'strut_shrink'
+            (threshold pulled halfway back toward the source value).
+    resample_ratio: if set (e.g. 0.75), each tree is refined on its own
+    RandomUnderSampler subset (seeded per tree) — mirrors how the source
+    trees saw data and preserves ensemble diversity.
     """
     y = np.asarray(y) > 0
-    w = balanced_weights(y)
+    base_rows = np.arange(len(y))
     refined = []
-    for clf, fts in trees_fts:
-        X = build_X(fM, fts)
+    for i, (clf, fts) in enumerate(trees_fts):
+        rows = base_rows
+        if resample_ratio is not None:
+            from imblearn.under_sampling import RandomUnderSampler
+            rus = RandomUnderSampler(sampling_strategy=resample_ratio,
+                                     random_state=random_state + i)
+            sel, _ = rus.fit_resample(base_rows.reshape(-1, 1), y)
+            rows = np.sort(sel[:, 0])
+        yi = y[rows]
+        wi = balanced_weights(yi)
+        X = build_X(fM.iloc[rows], fts)
         rt = RefinableTree.from_sklearn(clf)
-        if method == 'strut':
-            strut(rt.root, X, y.astype(float), w)
+        if method in ('strut', 'strut_shrink', 'leaf'):
+            strut(rt.root, X, yi.astype(float), wi,
+                  refit=(method != 'leaf'),
+                  shrink=shrink if method == 'strut_shrink' else 0.0)
         elif method == 'ser':
-            rt.root = ser(rt.root, X, y.astype(float), w,
+            rt.root = ser(rt.root, X, yi.astype(float), wi,
                           random_state=random_state)
         else:
             raise ValueError(f"unknown method '{method}'")

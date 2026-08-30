@@ -81,7 +81,19 @@ data = {
 }
 TARGETS = ['FWVZ', 'KRVZ']
 BASES = ['full', 'no_WIZ']
-METHODS = ['strut', 'ser']
+# method name -> (fine_tuning method, resample_ratio). Round 1 ran plain
+# strut/ser (negative result); round 2 tests regularised variants:
+# leaf-only recalibration, threshold shrinkage, per-tree undersampling.
+VARIANTS = {
+    'strut': ('strut', None),
+    'ser': ('ser', None),
+    'leaf': ('leaf', None),
+    'strut_shrink': ('strut_shrink', None),
+    'strut_us': ('strut', 0.75),
+    'ser_us': ('ser', 0.75),
+}
+METHODS = ['leaf', 'strut_shrink', 'strut_us', 'ser_us']
+RESULTS_CSV = 'phase_c_results_variants.csv'
 data_streams = ['zsc2_rsamF', 'zsc2_mfF', 'zsc2_hfF', 'zsc2_dsarF']
 window = 2.
 ths = np.linspace(0, 1, num=101)
@@ -160,9 +172,10 @@ def stage_refine():
                         if agree < 0.999:
                             raise RuntimeError('tree extraction mismatch!')
                     t0 = time.time()
+                    ft_method, rr = VARIANTS[method]
                     refined = FT.refine_ensemble(
                         [(c, f) for c, f in trees],
-                        fM.loc[mask], y[mask], method)
+                        fM.loc[mask], y[mask], ft_method, resample_ratio=rr)
                     roots = [(rt.root, fts) for rt, fts in refined]
                     with open(out, 'wb') as fp:
                         pickle.dump(roots, fp)
@@ -350,19 +363,20 @@ def stage_eval():
                              'method': method, 'auc': auc})
                 log.info(f'{target}/{base}/{method}: AUC = {auc:.4f}')
 
-            # mix = mean of SER and STRUT consensus
-            mix = masters['strut'].copy()
-            common = mix.index.intersection(masters['ser'].index)
-            mix = mix.loc[common]
-            mix['consensus'] = (mix['consensus']
-                                + masters['ser'].loc[common, 'consensus']) / 2.
-            auc = eruption_auc(mix, tes)
-            rows.append({'target': target, 'base': base, 'method': 'mix',
-                         'auc': auc})
-            log.info(f'{target}/{base}/mix: AUC = {auc:.4f}')
+            # mix = mean of SER and STRUT consensus (only when both ran)
+            if 'strut' in masters and 'ser' in masters:
+                mix = masters['strut'].copy()
+                common = mix.index.intersection(masters['ser'].index)
+                mix = mix.loc[common]
+                mix['consensus'] = (mix['consensus']
+                                    + masters['ser'].loc[common, 'consensus']) / 2.
+                auc = eruption_auc(mix, tes)
+                rows.append({'target': target, 'base': base, 'method': 'mix',
+                             'auc': auc})
+                log.info(f'{target}/{base}/mix: AUC = {auc:.4f}')
 
     df = pd.DataFrame(rows)
-    out = os.path.join(FORECAST_ROOT_C, 'phase_c_results.csv')
+    out = os.path.join(FORECAST_ROOT_C, RESULTS_CSV)
     df.to_csv(out, index=False)
     log.info(f'Results saved to {out}')
     log.info('STAGE EVAL complete.')
