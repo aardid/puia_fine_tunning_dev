@@ -155,7 +155,7 @@ See `PLAN.md` for the full implementation plan. The Marsden proposal (`project/2
 
 - **Phase A**: Leakage-audited baseline (LOO cross-validation) — **DONE 2026-08-30, AUC = 0.8231**
 - **Phase B**: Source selection / pool curation — **B.1 DONE 2026-08-30** (see below); B.2/B.3 running
-- **Phase C**: SER/STRUT tree refinement — modify existing tree structure using target data
+- **Phase C**: SER/STRUT tree refinement — **DONE 2026-08-30, negative result** (see below)
 - **Phase D**: TransferBoost — instance-weighted boosting (TrAdaBoost)
 - **Phase E**: Logit residual model — small booster on generalized model's residuals (gated on C/D)
 - **Phase F**: Stacking meta-learner (gated, likely skipped — too few eruptions)
@@ -248,6 +248,23 @@ KRVZ (Tongariro), sorted: {ONTA,SHW} **0.8848**, {FWVZ,SHW} 0.8608, {FWVZ} 0.771
 **Landscape findings**: (1) **Perfect WIZ separation for both targets** — every WIZ-free pool outperforms every WIZ-containing pool (FWVZ: ≥0.886 vs ≤0.857; KRVZ: ≥0.674 vs ≤0.666). Whakaari membership is the single dominant pool factor; e.g. {SHW}→FWVZ drops 0.963→0.768 when WIZ is added. (2) Best pools are small and foreign: FWVZ ← {SHW} alone (0.963); KRVZ ← {ONTA,SHW} (0.885) — no NZ volcano. (3) Source value is non-additive; single-source ablation reshuffles once WIZ is out. (4) Curation alone lifts FWVZ 0.845→0.963 and KRVZ 0.649→0.885 — per the B.3 gate, phases C-E now target a small residual. **Selection-bias caveat**: the max over 15 pools scored on 2-3 target eruptions is an optimistic (oracle-curated) upper bound; Phase G must use a nested/held-out protocol for headline claims.
 
 **B.2 results (2026-08-30)** (`forecasts/phase_b/mmd_*.csv`): RBF-MMD² between stations' standardized training features (1296 complete-case common features). Non-eruptive: FWVZ↔KRVZ are the closest pair (0.012); WIZ is *closer* to both targets (0.017-0.025) than ONTA/SHW (0.03-0.06). **Feature-space similarity does NOT predict transfer value**: Spearman(MMD, ablation lift) = 0.05 (non-eruptive) / 0.19 (pre-eruptive, n=4 samples per station — very noisy), n=8 pairs. WIZ sits close to the targets in background feature space yet transfers worst — so pool curation cannot be shortcut by MMD screening in this pool; the harm is likely in precursor *dynamics*, not feature distributions.
+
+## Phase C Progress (2026-08-30) — negative result
+
+`puia/fine_tuning.py` implements SER/STRUT (Segev et al. 2016) with mutable dict-trees and vectorised prediction (extraction verified 100% faithful to sklearn). Simplifications: STRUT uses pure class-weighted Gini gain (no divergence-to-source term); unreachable nodes keep source structure. `phase_c_local.py` runs refine→forecast→eval with the Phase-A-mirror protocol: background from ensemble refined on all target data, each eruption spliced from the ensemble refined without it (±1 month) — eruptions are out-of-sample.
+
+**Results (`forecasts/phase_c/phase_c_results.csv`): every refined variant is worse than its unrefined base.**
+
+| target/base | base | STRUT | SER | mix |
+|---|---|---|---|---|
+| FWVZ/full | 0.845 | 0.519 | 0.704 | 0.527 |
+| FWVZ/no_WIZ | 0.932 | 0.751 | 0.881 | 0.783 |
+| KRVZ/full | 0.649 | 0.582 | 0.551 | 0.576 |
+| KRVZ/no_WIZ | 0.763 | 0.554 | 0.468 | 0.519 |
+
+**Diagnosis**: not an FPR explosion — the opposite. Refined ensembles' consensus collapses in range (base: 2.9% of background windows >0.8; STRUT/SER: 0%; SER mean consensus 0.025 vs base 0.352). With only 8-12 positive windows from 2-3 eruptions, refinement (SER especially, in-sample balanced-acc 0.99) memorises those eruptions' exact feature signatures; the held-out eruption doesn't match them, so refined trees rarely fire — the ergodic generality of the source ensemble is erased. Classic few-shot overfit / catastrophic forgetting, exactly what the Marsden plan flagged as the core risk.
+
+**Interpretation for the paper**: with this few target eruptions, structural tree refinement destroys value while pool curation (Phase B) adds it — "choose your teachers, don't rewrite the lessons." Follow-up variants worth trying before closing C: (1) STRUT with the original divergence-to-source term or threshold shrinkage (interpolate old→new), (2) per-tree undersampled refinement sets to preserve ensemble diversity, (3) leaf-probability-only recalibration (no structural change — the mildest adaptation, close to tree-vote reweighting). Otherwise proceed to Phase D with C as the cautionary baseline.
 
 ## Papers (in `papers/`)
 
