@@ -1161,9 +1161,18 @@ class Feature(object):
         yr = ti.year
         ftfl = _featfile(ds, yr, self.data.station)
 
+        fm_pre = None
         if os.path.isfile(ftfl):
-            # load existing feature matrix
-            fm_pre = load_dataframe(ftfl, index_col=0, parse_dates=['time'], infer_datetime_format=True, header=0, skiprows=None, nrows=None)
+            try:
+                fm_pre = load_dataframe(ftfl, index_col=0, parse_dates=['time'], infer_datetime_format=True, header=0, skiprows=None, nrows=None)
+            except (OSError, EOFError, Exception) as e:
+                print(f"Corrupted feature file {ftfl}, deleting and re-extracting: {e}")
+                try:
+                    os.remove(ftfl)
+                except OSError:
+                    pass
+                fm_pre = None
+        if fm_pre is not None:
             # request for features, labeled by index
             l1 = [np.datetime64(ti + i*_dto) for i in range(Nw)]
             # read existing index

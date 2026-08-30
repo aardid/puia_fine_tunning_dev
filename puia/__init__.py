@@ -1541,7 +1541,7 @@ def train_one_model(fM, ys, Nfts, modeldir, classifier, retrain, random_seed, me
     ''' helper function for parallelising model training
     '''
     # undersample data
-    rus = RandomUnderSampler(method, random_state=random_state+random_seed)
+    rus = RandomUnderSampler(sampling_strategy=method, random_state=random_state+random_seed)
     fMt,yst = rus.fit_resample(fM,ys)
     yst = pd.Series(yst>0, index=range(len(yst)))
     fMt.index = yst.index

@@ -53,32 +53,56 @@ def datetimeify(t):
 def save_dataframe(df, fl, index=True, index_label=None):
     ''' helper function for saving dataframes
     '''
-    if fl.endswith('.csv'):
-        df.to_csv(fl, index=index, index_label=index_label)
-    elif fl.endswith('.pkl'):
-        fp = open(fl, 'wb')
-        pickle.dump(df,fp)
-    elif fl.endswith('.hdf'):
-        df.to_hdf(fl, 'test', format='fixed', mode='w')
-    else:
-        raise ValueError('only csv, hdf and pkl file formats supported')
+    import time as _time
+    for _attempt in range(3):
+        try:
+            if fl.endswith('.csv'):
+                df.to_csv(fl, index=index, index_label=index_label)
+            elif fl.endswith('.pkl'):
+                fp = open(fl, 'wb')
+                pickle.dump(df,fp)
+                fp.close()
+            elif fl.endswith('.hdf'):
+                df.to_hdf(fl, 'test', format='fixed', mode='w')
+            else:
+                raise ValueError('only csv, hdf and pkl file formats supported')
+            return
+        except OSError:
+            if _attempt < 2:
+                _time.sleep(5)
+            else:
+                raise
 
-def load_dataframe(fl, index_col=None, parse_dates=False, usecols=None, infer_datetime_format=False, 
+def load_dataframe(fl, index_col=None, parse_dates=False, usecols=None, infer_datetime_format=False,
     nrows=None, header='infer', skiprows=None):
     ''' helper function for loading dataframes
     '''
-    if fl.endswith('.csv'):
-        df = pd.read_csv(fl, index_col=index_col, parse_dates=parse_dates, usecols=usecols,
-            nrows=nrows, header=header, skiprows=skiprows)
-        if parse_dates and index_col is not None and not isinstance(df.index, pd.DatetimeIndex):
-            df.index = pd.to_datetime(df.index, dayfirst=True)
-    elif fl.endswith('.pkl'):
-        fp = open(fl, 'rb')#'rb')
-        df = pickle.load(fp)
-    elif fl.endswith('.hdf'):
-        df = pd.read_hdf(fl, 'test')
-    else:
-        raise ValueError('only csv and pkl file formats supported')
+    import time as _time
+    for _attempt in range(3):
+        try:
+            if fl.endswith('.csv'):
+                df = pd.read_csv(fl, index_col=index_col, parse_dates=parse_dates, usecols=usecols,
+                    nrows=nrows, header=header, skiprows=skiprows)
+                if parse_dates and index_col is not None:
+                    if not isinstance(df.index, pd.DatetimeIndex):
+                        df.index = pd.to_datetime(df.index, dayfirst=True)
+                    elif not df.index.is_monotonic_increasing:
+                        df = pd.read_csv(fl, index_col=index_col, parse_dates=parse_dates,
+                            usecols=usecols, nrows=nrows, header=header, skiprows=skiprows,
+                            dayfirst=True)
+            elif fl.endswith('.pkl'):
+                df = pd.read_pickle(fl)
+            elif fl.endswith('.hdf'):
+                df = pd.read_hdf(fl, 'test')
+            else:
+                raise ValueError('only csv and pkl file formats supported')
+            break
+        except OSError:
+            if _attempt < 2:
+                print(f"Network read error on {fl}, retrying ({_attempt+1}/3)...")
+                _time.sleep(5)
+            else:
+                raise
 
     if fl.endswith('.pkl') or fl.endswith('.hdf'):
         if usecols is not None:

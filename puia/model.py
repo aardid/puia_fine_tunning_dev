@@ -128,19 +128,34 @@ def train_one_model(fM, ys, Nfts, modeldir, classifier, retrain, random_seed, me
     '''
     # undersample data
     # ys=yss['label']
-    rus=RandomUnderSampler(method, random_state=random_state+random_seed)
+    rus=RandomUnderSampler(sampling_strategy=method, random_state=random_state+random_seed)
     # fMyss=pd.concat([fM,yss],axis=1)    # DED temporary concat for co-sampling
     fMt,yst=rus.fit_resample(fM,ys['label'])
     # ysst=fMt[yss.columns]               # DED split off label DF post sampling (for inspection)
     # fMt=fMt.drop(columns=yss.columns)   # DED split off feature matrix
-    yst=pd.Series(yst>0, index=range(len(yst)))
-    fMt.index=yst.index
+    fMt = fMt.reset_index(drop=True)
+    yst = pd.Series(np.asarray(yst) > 0, index=fMt.index, dtype=bool)
 
-    # find significant features
-    select=FeatureSelector(n_jobs=0, ml_task='classification')
-    select.fit_transform(fMt,yst)
-    fts=select.features[:Nfts]
-    pvs=select.p_values[:Nfts]
+    # drop constant/nan/inf columns that break significance tests
+    fMt = fMt.replace([np.inf, -np.inf], np.nan)
+    fMt = fMt.dropna(axis=1, how='any')
+    fMt = fMt.loc[:, fMt.nunique() > 1].copy()
+
+    # find significant features using Mann-Whitney U test
+    from scipy.stats import mannwhitneyu
+    mask = yst.values
+    pos = fMt.loc[mask]
+    neg = fMt.loc[~mask]
+    pvals = {}
+    for col in fMt.columns:
+        try:
+            _, pv = mannwhitneyu(pos[col].values, neg[col].values, alternative='two-sided')
+            pvals[col] = pv
+        except Exception:
+            pvals[col] = 1.0
+    pvals = pd.Series(pvals).sort_values()
+    fts = pvals.index[:Nfts].tolist()
+    pvs = pvals.values[:Nfts]
     fMt=fMt[fts]
     with open('{:s}/{:04d}.fts'.format(modeldir, random_state),'w') as fp:
         for f,pv in zip(fts,pvs): 
@@ -172,11 +187,24 @@ def forecast_models(fM, model_path, flps,yr):
             ypdf0=load_dataframe(fl, index_col='time', infer_datetime_format=True, parse_dates=['time'])
 
         num=flp.split(os.sep)[-1].split('.')[0].split('_')[-1]
-        model=joblib.load(flp)
+        for _attempt in range(3):
+            try:
+                model=joblib.load(flp)
+                break
+            except (OSError, ModuleNotFoundError) as e:
+                if _attempt < 2:
+                    import time as _time
+                    _time.sleep(5)
+                else:
+                    raise
         with open(model_path+'{:s}.fts'.format(num)) as fp:
             lns=fp.readlines()
-        fts=[' '.join(ln.rstrip().split()[1:]) for ln in lns]            
-        
+        fts=[' '.join(ln.rstrip().split()[1:]) for ln in lns]
+        missing_fts = [f for f in fts if f not in fM.columns]
+        if missing_fts:
+            for f in missing_fts:
+                fM[f] = 0.
+
         if not os.path.isfile(fl):
             # simulate forecast period
             yp=model.predict(fM[fts])
@@ -192,7 +220,6 @@ def forecast_models(fM, model_path, flps,yr):
                 ypdf=pd.concat([ypdf0, ypdf])
 
         save_dataframe(ypdf, fl, index=True, index_label='time')
-        # print('finish:',flp)
         ypdfs.append(ypdf)
     return ypdfs
 def forecast_one_model(fM, model_path, flp):
@@ -208,8 +235,12 @@ def forecast_one_model(fM, model_path, flp):
     model=joblib.load(flp)
     with open(model_path+'{:s}.fts'.format(num)) as fp:
         lns=fp.readlines()
-    fts=[' '.join(ln.rstrip().split()[1:]) for ln in lns]            
-    
+    fts=[' '.join(ln.rstrip().split()[1:]) for ln in lns]
+    missing_fts = [f for f in fts if f not in fM.columns]
+    if missing_fts:
+        for f in missing_fts:
+            fM[f] = 0.
+
     if not os.path.isfile(fl):
         # simulate forecast period
         yp=model.predict(fM[fts])
@@ -368,11 +399,11 @@ class ForecastModel(object):
         self.root=root
         self.data_dir=data_dir if data_dir else f'{self.root_dir}/data/'
         self.model_dir=model_dir if model_dir else f'{self.root_dir}/models'
-        self.model_dir=f'{self.model_dir}/{self.root}'
+        self.model_dir=os.path.normpath(f'{self.model_dir}/{self.root}')
         self.fcst_dir=forecast_dir if forecast_dir else f'{self.root_dir}/forecasts'
-        self.fcst_dir=f'{self.fcst_dir}/{self.root}'
+        self.fcst_dir=os.path.normpath(f'{self.fcst_dir}/{self.root}')
         self.plot_dir=plot_dir if plot_dir else f'{self.root_dir}/plots'
-        self.plot_dir=f'{self.plot_dir}/{self.root}'
+        self.plot_dir=os.path.normpath(f'{self.plot_dir}/{self.root}')
 
         # multi-resolution scales
         self.scales=scales
@@ -643,6 +674,10 @@ class ForecastModel(object):
         # get feature matrix and label vector
         fM, ys=self.ft.load_data(ti, tf, exclude_dates)
 
+        # reset index to avoid duplicate label issues from multi-station concat
+        fM = fM.reset_index(drop=True)
+        ys = ys.reset_index(drop=True)
+
         # manually drop features (columns)
         fM=_drop_features(fM, drop_features)
 
@@ -770,7 +805,13 @@ class ForecastModel(object):
                     tis.append(self.ti_forecast)
                 else:
                     # load an existing forecast
-                    y=load_dataframe(fcst, index_col=0, parse_dates=['time'], infer_datetime_format=True)
+                    try:
+                        y=load_dataframe(fcst, index_col=0, parse_dates=['time'], infer_datetime_format=True)
+                    except (EOFError, Exception):
+                        os.remove(fcst)
+                        run_forecast.append([model, fcst])
+                        tis.append(self.ti_forecast)
+                        continue
                     # check if forecast spans the requested interval
                     if y.index[-1] < self.tf_forecast:
                         run_forecast.append([model, fcst])
@@ -878,7 +919,11 @@ class ForecastModel(object):
             ci : numpy.array
                 95% confidence interval of the model consensus
         """
-        ci=1.96*(np.sqrt(y*(1-y)/self.Ncl))
+        Ncl = getattr(self, 'Ncl', None)
+        if Ncl is None:
+            Ncl = len(glob('{:s}/*.pkl'.format(self.model_dir)))
+            if Ncl == 0: Ncl = 300
+        ci=1.96*(np.sqrt(y*(1-y)/Ncl))
         return ci
     def plot_forecast(self, ys, threshold=0.75, save=None, xlim=['2019-12-01','2020-02-01']):
         """ Plot model forecast.
@@ -983,12 +1028,16 @@ class ForecastModel(object):
                 rsam=self.data.get_data(t[0], t[-1])['zsc2_rsamF']
             else: 
                 rsam=self.data.get_data(t[0], t[-1])['rsamF']
-        else: 
-            if 'zsc_rsam' in self.data_streams and 'rsam' not in self.data_streams:
+        else:
+            if 'zsc2_rsamF' in self.data_streams:
+                rsam=self.data.get_data(t[0], t[-1])['zsc2_rsamF']
+            elif 'zsc_rsam' in self.data_streams and 'rsam' not in self.data_streams:
                 rsam=self.data.get_data(t[0], t[-1])['zsc_rsam']
             elif 'zsc2_rsam' in self.data_streams and 'rsam' not in self.data_streams:
                 rsam=self.data.get_data(t[0], t[-1])['zsc2_rsam']
-            else: 
+            elif 'rsamF' in self.data_streams:
+                rsam=self.data.get_data(t[0], t[-1])['rsamF']
+            else:
                 rsam=self.data.get_data(t[0], t[-1])['rsam']
         trsam=rsam.index
         if nztimezone:
@@ -1311,11 +1360,11 @@ class CombinedModel(object):
             self.root_dir='/'.join(getfile(currentframe()).split(os.sep)[:-2])
         else:
             self.root_dir=root_dir
-        self.plot_dir=f'{self.root_dir}/plots/{self.root}'
+        self.plot_dir=os.path.normpath(f'{self.root_dir}/plots/{self.root}')
         if model_dir:
-            self.model_dir=model_dir+os.sep+self.root
+            self.model_dir=os.path.normpath(os.path.join(model_dir, self.root))
         else:
-            self.model_dir=f'{self.root_dir}/models/{self.root}'
+            self.model_dir=os.path.normpath(f'{self.root_dir}/models/{self.root}')
         if feat_dir is None:
             self.feat_dir=f'{self.root_dir}/features'
         else:
