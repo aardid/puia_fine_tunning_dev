@@ -159,7 +159,7 @@ See `PLAN.md` for the full implementation plan. The Marsden proposal (`project/2
 - **Phase D**: TransferBoost — **DONE 2026-08-31** (see below): boosting degenerates to target-only but scores ~0.997; needs Phase G stress-test
 - **Phase E**: Logit residual model — small booster on generalized model's residuals (gated on C/D)
 - **Phase F**: Stacking meta-learner (gated, likely skipped — too few eruptions)
-- **Phase G**: Unified evaluation + learning curves (headline result)
+- **Phase G**: Unified evaluation — **DONE 2026-09-01** (see below): curated pools win prospectively; tboost's 0.997 exposed as sibling-memorisation except at the data-rich target
 - **Phase H**: Physical interpretation — universal vs. volcano-specific features
 
 New code goes in `puia/fine_tuning.py` and `puia/evaluation.py`. **Do not modify `train_one_model()`** — add new entry points to preserve published results.
@@ -298,6 +298,21 @@ KRVZ (Tongariro), sorted: {ONTA,SHW} **0.8848**, {FWVZ,SHW} 0.8608, {FWVZ} 0.771
 ## Phase H-lite: why Whakaari poisons pools (2026-08-31)
 
 Feature tallies over each ensemble's 6000 selected features (300 trees x 20): with WIZ in the pool ({W,K,O,S}), selection locks onto amplitude/energy statistics — **71% RSAM-stream features**, fft_coefficient 48%, change_quantiles 21%, HF 4%, DSAR 0%. WIZ-free pools shift to temporal-structure features: {K,O,S} = mf 44%/rsam 25%/hf 23%/dsar 8% with **cwt 26% + autocorrelation 21%**; the star pool {O,S} = balanced streams with autocorrelation-family 28%. Mechanism: WIZ contributes 20/48 positives with loud amplitude-dominated signatures that dominate the Mann-Whitney ranking; absolute loudness does not transfer between volcanoes, waveform structure (the ramp's shape) does. Explains both halves of the asymmetry (WIZ data poisons others; WIZ itself is forecast superbly by shape-based foreign models) and why instance-level weighting (Phase D) cannot detect the harm.
+
+## Phase G: pseudo-prospective unified evaluation (2026-09-01)
+
+`phase_g_local.py`; `forecasts/phase_g/phase_g_{events,summary}.csv`. Protocol: per eruption, all target-derived information (data, pool selection, adaptation) restricted to before the forecast window (te-1mo..te+4d); no-prior-eruption folds fall back to the full pool (the operational policy). Scoring on window rows only (unrest-month background — strictly harder than the whole-record metric used in Phases A-D; numbers are not comparable across metric bases).
+
+| method | FWVZ | KRVZ | WIZ |
+|---|---|---|---|
+| full pool | 0.869 | 0.671 | 0.812 |
+| **curated (prospective selection)** | **0.880** | **0.771** | 0.864 |
+| ser_us (prospective refit) | 0.776 | 0.729 | 0.778 |
+| tboost (prospective refit) | 0.815* | 0.708* | **0.914** |
+
+(*) tboost's FWVZ/KRVZ AUCs come entirely from the e0 fallback rows: **its pre-eruption q95 = 0.00 at every genuinely prospective FWVZ/KRVZ eruption** — Phase D's 0.997 was sibling-eruption + background memorisation, as suspected. At WIZ, tboost partially redeems: detects the Dec-2019 (fatal) eruption at q95 = 1.00 with 4 prior eruptions in training (and 2013-10 at 0.85, though its sibling 2013-08 was in training); WIZ tboost 0.914 is the best prospective score of the whole study.
+
+**Verdicts**: (1) **pool curation survives the strictest test** — beats the full pool at all 3 targets (+0.011/+0.103/+0.052) even with noisy early-history selections; the paper's central claim is prospective-grade. (2) ser_us does not survive strict prospectivity at 1-3 prior eruptions (below full at 2 of 3 targets). (3) The decision ladder is confirmed end-to-end: 0 prior eruptions → curated/full foreign pool; 1-3 → curated pool (adaptation unreliable); ~4+ → target-boosted local model becomes the best option (WIZ 0.914).
 
 ## Papers (in `papers/`)
 
