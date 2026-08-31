@@ -559,6 +559,117 @@ def fig7():
     save(fig, 'F7_operational_view')
 
 
+# ============================================================
+# F8 — sustained-alert rule: detection vs false alarms
+# ============================================================
+def fig8():
+    df = pd.read_csv(os.path.join(REPO, r'forecasts\phase_b\alert_rule_table.csv'))
+    targets = ['FWVZ', 'KRVZ', 'WIZ']
+    tnames = {'FWVZ': 'Ruapehu (3 eruptions)', 'KRVZ': 'Tongariro (2 eruptions)',
+              'WIZ': 'Whakaari (5 eruptions)'}
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4.2), sharey=True)
+    for ax, t in zip(axes, targets):
+        sub = df[df.target == t]
+        frac = sub.detected / sub.n_eruptions
+        wiz = sub.pool.str.contains('WIZ|^W|full') if t != 'WIZ' \
+            else pd.Series(False, index=sub.index)
+        if t != 'WIZ':
+            wiz = sub.pool.map(lambda p: 'WIZ' in pool_of_variant(t, p))
+        colors = [C2 if w else C1 for w in wiz]
+        ax.scatter(sub.false_alarms_per_year, frac, c=colors, s=48,
+                   edgecolor=SURF, linewidth=0.8, zorder=3)
+        # annotate only the standouts: best detection fraction, ties broken
+        # by fewer false alarms / longer lead
+        top = sub[sub.detected > 0].sort_values(
+            ['detected', 'false_alarms_per_year'], ascending=[False, True])
+        keep = top.head(2)
+        if len(top) > 2:  # also flag the longest-lead detector if distinct
+            lead_best = top.sort_values('mean_lead_days', ascending=False).head(1)
+            keep = pd.concat([keep, lead_best]).drop_duplicates('pool')
+        for k, (_, r) in enumerate(keep.iterrows()):
+            nice = r.pool.replace('cur_', '').replace('no_', 'no ')
+            dx = (-26, 26, 0)[k % 3]
+            ax.annotate(f'{nice}\nlead {r.mean_lead_days:.0f}d',
+                        (r.false_alarms_per_year, r.detected / r.n_eruptions),
+                        xytext=(dx, 8), textcoords='offset points',
+                        ha='center', fontsize=7.5, color=INK2)
+        ax.set_xlim(0, 13)
+        ax.set_ylim(-0.05, 0.62)
+        ax.set_yticks([0, 0.2, 0.4, 0.6])
+        ax.set_yticklabels(['0%', '20%', '40%', '60%'])
+        ax.set_title(tnames[t], loc='left', fontsize=10, color=INK)
+        ax.set_xlabel('false alarms per year')
+        style_ax(ax, ygrid=True)
+    axes[0].set_ylabel('eruptions detected (sustained alert in final 10 days)')
+    fig.suptitle('A sustained-alert rule only works at Whakaari — short '
+                 'precursors elsewhere need the 2-day window metric',
+                 x=0.005, ha='left', fontsize=12.5, fontweight='bold', y=1.09)
+    fig.text(0.005, 1.015,
+             'Causal rule: alert when the 12-h median exceeds the trailing '
+             '30-day q99 for 6+ hours. Blue = Whakaari-free pool, orange = '
+             'contains Whakaari.', fontsize=9, color=INK2)
+    fig.tight_layout()
+    save(fig, 'F8_alert_rule_tradeoff')
+
+
+# ============================================================
+# F9 — case study: Whakaari Dec 2019, Ontake-pool sustained alert
+# ============================================================
+def fig9():
+    import matplotlib.dates as mdates
+    from datetime import datetime, timedelta
+    te = datetime(2019, 12, 9, 1, 11)
+    w0, t1 = te - timedelta(days=30.4), te + timedelta(days=4)
+    df = pd.read_pickle(os.path.join(REPO, r'forecasts\phase_b_wiz\WIZ_2019.pkl'))
+    o = df['O'][(df.index >= w0) & (df.index <= t1)]
+    res = pd.read_pickle(os.path.join(REPO, r'forecasts\phase_g\WIZ__e4.pkl'))
+    tb = res['tboost']
+    bg = o[o.index < te - timedelta(days=10)]
+    thr = bg.quantile(0.99)
+    med = o.rolling('12h').median()
+    above = (med[med.index >= te - timedelta(days=10)] > thr)
+    run, onset = 0, None
+    for t, a in above.items():
+        run = run + 1 if a else 0
+        if run >= 36:
+            onset = t - timedelta(hours=6)
+            break
+
+    fig, ax = plt.subplots(figsize=(11.5, 4.6))
+    ax.plot(o.index, o.values, lw=0.4, color=C1, alpha=0.35)
+    ax.plot(med.index, med.values, lw=1.9, color='#104281',
+            label='Ontake-only pool, 12-h median')
+    ax.plot(tb.index, tb.values, lw=1.1, color='#c98500',
+            label='target-boosted (raw, prospective)')
+    ax.axhline(thr, color=INK2, lw=1, ls=':',
+               label=f'alert threshold (own Nov background q99 = {thr:.2f})')
+    ax.axvline(te, color='#e34948', ls='--', lw=1.5)
+    ax.axvspan(onset, te, color='#eda100', alpha=0.15)
+    ax.annotate(f'sustained alert begins\n'
+                f'{(te-onset).total_seconds()/86400:.1f} days before eruption',
+                xy=(onset, thr + 0.02),
+                xytext=(onset - timedelta(days=8), 0.76), fontsize=9.5,
+                color=INK, arrowprops=dict(arrowstyle='->', color=INK2, lw=1))
+    ax.text(te + timedelta(hours=8), 1.0, 'eruption\nDec 9, 2019',
+            color='#e34948', fontsize=9, va='top')
+    ax.set_ylim(0, 1.05)
+    ax.set_ylabel('consensus')
+    style_ax(ax, ygrid=True)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
+    ax.legend(loc='upper left', frameon=False, fontsize=9)
+    fig.suptitle('Whakaari, December 2019: a nine-day sustained alert from '
+                 'the Ontake-trained pool', x=0.005, ha='left',
+                 fontsize=12.5, fontweight='bold', y=1.06)
+    fig.text(0.005, 0.985,
+             'Caveat: under the same causal rule this model fires ~11 false '
+             'episodes per year at Whakaari (F8) — the escalation is real, '
+             'but so is the alarm cost. Pool selected retrospectively; '
+             'the target-boosted trace is fully prospective.',
+             fontsize=8.6, color=INK2, va='top')
+    fig.tight_layout(rect=[0, 0, 1, 0.93])
+    save(fig, 'F9_wiz2019_case_study')
+
+
 if __name__ == '__main__':
     fig1()
     fig2()
@@ -567,4 +678,6 @@ if __name__ == '__main__':
     fig5()
     fig6()
     fig7()
+    fig8()
+    fig9()
     print('figure pack complete ->', FIG)
