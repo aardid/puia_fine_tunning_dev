@@ -619,7 +619,7 @@ def fig9():
     import matplotlib.dates as mdates
     from datetime import datetime, timedelta
     te = datetime(2019, 12, 9, 1, 11)
-    YTOP = 1.05          # 5% above the 100% consensus ceiling
+    YTOP = 0.8           # focus on the meaningful consensus band
 
     # 2 years + 30-day threshold warm-up of the Ontake-only pool consensus
     ctx0 = te - timedelta(days=2 * 365.25)
@@ -667,7 +667,7 @@ def fig9():
     for a, b in episodes:
         ax.axvspan(a, b, color='#eda100', alpha=0.35)
     ax.axvline(te, color='#e34948', ls='--', lw=1.5)
-    ax.text(te - timedelta(days=18), 1.0, 'eruption', color='#e34948',
+    ax.text(te - timedelta(days=18), YTOP * 0.97, 'eruption', color='#e34948',
             fontsize=9, va='top', ha='right')
     ax.set_xlim(ctx0, te + timedelta(days=4))
     ax.set_ylim(0, YTOP)
@@ -708,9 +708,9 @@ def fig9():
     ax.annotate(f'sustained alert begins\n'
                 f'{(te-onset).total_seconds()/86400:.1f} days before eruption',
                 xy=(onset, thr + 0.02),
-                xytext=(onset - timedelta(days=8), 0.76), fontsize=9.5,
+                xytext=(onset - timedelta(days=8), 0.70), fontsize=9.5,
                 color=INK, arrowprops=dict(arrowstyle='->', color=INK2, lw=1))
-    ax.text(te + timedelta(hours=8), 1.0, 'eruption\nDec 9, 2019',
+    ax.text(te + timedelta(hours=8), YTOP * 0.97, 'eruption\nDec 9, 2019',
             color='#e34948', fontsize=9, va='top')
     ax.set_ylim(0, YTOP)
     ax.set_ylabel('consensus')
