@@ -730,6 +730,121 @@ def fig9():
     save(fig, 'F9_wiz2019_case_study')
 
 
+# ============================================================
+# F10 — optimal alert rule + operating curve
+# ============================================================
+def fig10():
+    import matplotlib.dates as mdates
+    from datetime import datetime, timedelta
+    te = datetime(2019, 12, 9, 1, 11)
+    YTOP = 0.8
+    Q, LB_D, MW_H, SU_H = 0.995, 180, 24, 24   # sweep optimum
+
+    files = sorted(glob(os.path.join(REPO, r'forecasts\phase_b_wiz', 'WIZ_*.pkl')))
+    df = pd.concat([pd.read_pickle(f) for f in files])
+    df = df[~df.index.duplicated()].sort_index()
+    con = df['O'].resample('1h').median().dropna()
+    med = con.rolling(MW_H, min_periods=MW_H // 2).median()
+    thr = con.rolling(LB_D * 24, min_periods=240).quantile(Q).shift(1)
+    active = (med > thr) & thr.notna()
+    episodes, onset, run = [], None, 0
+    for t, a in active.items():
+        if a:
+            run += 1
+            if run == SU_H:
+                onset = t - timedelta(hours=SU_H - 1)
+        else:
+            if onset is not None:
+                episodes.append((onset, t))
+                onset = None
+            run = 0
+    if onset is not None:
+        episodes.append((onset, active.index[-1]))
+
+    fig, axes = plt.subplots(1, 2, figsize=(12.5, 4.4),
+                             gridspec_kw={'width_ratios': [2.1, 1]})
+
+    # --- (a) two-year view under the optimal rule ---
+    ax = axes[0]
+    ctx0 = te - timedelta(days=2 * 365.25)
+    eps2 = [(a, b) for a, b in episodes if b >= ctx0]
+    ov = df['O'][(df.index >= ctx0) & (df.index <= te + timedelta(days=4))]
+    ax.plot(ov.index, ov.values, lw=0.3, color=C1, alpha=0.30)
+    m5 = ov.rolling('5D').median()
+    ax.plot(m5.index, m5.values, lw=1.5, color='#104281',
+            label='Ontake-only pool, 5-day median')
+    tt = thr[(thr.index >= ctx0) & (thr.index <= te + timedelta(days=4))]
+    ax.plot(tt.index, tt.values, lw=1.0, ls=':', color=INK2,
+            label=f'optimal threshold (trailing {LB_D}-day q{Q})')
+    for a, b in eps2:
+        ax.axvspan(a, b, color='#eda100', alpha=0.45)
+    ax.axvline(te, color='#e34948', ls='--', lw=1.5)
+    ax.text(te - timedelta(days=18), YTOP * 0.97, 'eruption',
+            color='#e34948', fontsize=9, va='top', ha='right')
+    pre = [o for o, b in eps2 if o < te and b > te - timedelta(days=10)]
+    if pre:
+        lead = (te - min(pre)).total_seconds() / 86400
+        ax.annotate(f'alert {lead:.1f} days\nbefore eruption',
+                    xy=(min(pre), 0.62), xytext=(te - timedelta(days=300), 0.68),
+                    fontsize=9, color=INK,
+                    arrowprops=dict(arrowstyle='->', color=INK2, lw=1))
+    nfa = len(eps2) - len(pre)
+    ax.set_xlim(ctx0, te + timedelta(days=4))
+    ax.set_ylim(0, YTOP)
+    ax.set_ylabel('consensus')
+    style_ax(ax, ygrid=True)
+    ax.legend(loc='upper left', frameon=False, fontsize=8.5)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+    ax.set_title(f'(a) the optimal rule over the same two years: '
+                 f'{nfa} false alarm{"s" if nfa != 1 else ""}, and the '
+                 'pre-eruption alert survives', loc='left', fontsize=10.5,
+                 color=INK)
+
+    # --- (b) operating curve from the sweep ---
+    ax = axes[1]
+    sw = pd.read_csv(os.path.join(REPO, r'forecasts\phase_b',
+                                  'alert_rule_sweep.csv'))
+    frac = sw.detected / 5.
+    ax.scatter(sw.false_alarms_per_year, frac, s=18, color=MUT, alpha=0.45,
+               edgecolor='none', label='all 240 rule settings', zorder=2)
+    # Pareto frontier: fewest FA for each detection level
+    front = sw.groupby('detected').false_alarms_per_year.min().reset_index()
+    front = front[front.detected > 0].sort_values('detected')
+    fx = list(front.false_alarms_per_year) + [13]
+    fy = list(front.detected / 5.)
+    ax.step(fx, fy + [fy[-1]], where='post', color=C2, lw=2,
+            label='best achievable (frontier)', zorder=3)
+    ax.scatter(front.false_alarms_per_year, front.detected / 5., color=C2,
+               s=52, zorder=4, edgecolor=SURF, linewidth=0.8)
+    # original heuristic + optimum
+    ax.scatter([10.8], [0.4], color=C1, s=60, zorder=5, edgecolor=SURF,
+               linewidth=0.8, label='original heuristic')
+    ax.annotate('optimum for 2019\n(1.1 FA/yr, 8.8-d lead)',
+                xy=(1.1, 0.2), xytext=(2.6, 0.06), fontsize=8, color=INK2,
+                arrowprops=dict(arrowstyle='->', color=INK2, lw=0.9))
+    ax.set_xlim(0, 13)
+    ax.set_ylim(-0.04, 0.72)
+    ax.set_yticks([0, 0.2, 0.4, 0.6])
+    ax.set_yticklabels(['0/5', '1/5', '2/5', '3/5'])
+    ax.set_xlabel('false alarms per year')
+    ax.set_ylabel('eruptions detected')
+    style_ax(ax, ygrid=True)
+    ax.legend(loc='lower right', frameon=False, fontsize=8)
+    ax.set_title('(b) detection vs false-alarm frontier', loc='left',
+                 fontsize=10.5, color=INK)
+
+    fig.suptitle('Tuning the alert rule: an order of magnitude fewer false '
+                 'alarms at the same nine-day lead', x=0.005, ha='left',
+                 fontsize=12.5, fontweight='bold', y=1.07)
+    fig.text(0.005, 0.995,
+             'Rule parameters swept in-sample over 2010-2020 (quantile, '
+             'lookback, median window, sustain); the Dec-2019 lead is '
+             'robust across 134/240 settings (8.6-9.5 days).',
+             fontsize=8.6, color=INK2, va='top')
+    fig.tight_layout(rect=[0, 0, 1, 0.97])
+    save(fig, 'F10_optimal_alert_rule')
+
+
 if __name__ == '__main__':
     fig1()
     fig2()
@@ -740,4 +855,5 @@ if __name__ == '__main__':
     fig7()
     fig8()
     fig9()
+    fig10()
     print('figure pack complete ->', FIG)
