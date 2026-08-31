@@ -386,10 +386,97 @@ def fig5():
     save(fig, 'F5_decision_ladder')
 
 
+# ============================================================
+# F6 — prospective replay, eruption by eruption
+# ============================================================
+POOL_NICE = {'full': 'fallback', 'cur_WIZ_KRVZ': 'W+K', 'no_WIZ': 'K+O+S',
+             'cur_ONTA_SHW': 'O+S', 'FK': 'F+K', 'F': 'F', 'OS': 'O+S'}
+
+
+def fig6():
+    ev = pd.read_csv(os.path.join(REPO, r'forecasts\phase_g\phase_g_events.csv'))
+    methods = ['full', 'curated', 'ser_us', 'tboost']
+    mlabels = ['full pool', 'curated pool', 'refined trees (ser_us)',
+               'target-boosted (tboost)']
+    mcolors = [C1, C2, C3, C4]
+    targets = ['FWVZ', 'KRVZ', 'WIZ']
+    tnames = {'FWVZ': 'Ruapehu', 'KRVZ': 'Tongariro', 'WIZ': 'Whakaari'}
+    counts = [ev[ev.target == t].eruption.nunique() for t in targets]
+
+    fig, axes = plt.subplots(1, 3, figsize=(12.5, 4.8),
+                             gridspec_kw={'width_ratios': counts}, sharey=True)
+    off = np.linspace(-0.27, 0.27, 4)
+    for ax, target in zip(axes, targets):
+        sub = ev[ev.target == target]
+        erups = sorted(sub.eruption.unique())
+        for e in erups:
+            rows = sub[sub.eruption == e].set_index('method')
+            fallback = rows.pre_q95.nunique() == 1 and e == 0
+            if fallback:
+                r = rows.loc['full']
+                ax.plot([e, e], [r.bg_p95, r.pre_q95], color=MUT, lw=1.6,
+                        zorder=2)
+                ax.plot(e, r.bg_p95, marker='_', ms=11, color=INK2, zorder=3)
+                ax.scatter(e, r.pre_q95, color=MUT, s=48, zorder=4)
+                ax.annotate('fallback\n(no prior\neruptions)', (e, 0.03),
+                            ha='center', fontsize=7, color=MUT)
+                continue
+            for m, c, o in zip(methods, mcolors, off):
+                r = rows.loc[m]
+                x = e + o
+                ax.plot([x, x], [r.bg_p95, r.pre_q95], color=GRID, lw=1.6,
+                        zorder=2)
+                ax.plot(x, r.bg_p95, marker='_', ms=9, color=INK2, zorder=3)
+                ax.scatter(x, r.pre_q95, color=c, s=44, zorder=4,
+                           edgecolor=SURF, linewidth=0.8)
+                if m == 'tboost' and r.pre_q95 == 0:
+                    ax.annotate('silent', (x, 0.015), ha='center', fontsize=6.5,
+                                color=INK2, rotation=90, va='bottom')
+        # x labels: date + curated pick
+        labels = []
+        for e in erups:
+            rows = sub[sub.eruption == e].set_index('method')
+            te = rows.loc['full'].te
+            pick = rows.loc['curated'].selected_pool
+            pick = POOL_NICE.get(pick, str(pick).replace('cur_', ''))
+            lab = te[:7]
+            if not (e == 0):
+                lab += f'\npick: {pick}'
+            labels.append(lab)
+        ax.set_xticks(erups)
+        ax.set_xticklabels(labels, fontsize=7.5)
+        ax.set_xlim(-0.6, max(erups) + 0.6)
+        ax.set_ylim(0, 1.05)
+        ax.set_title(tnames[target], loc='left', fontsize=10, color=INK)
+        style_ax(ax, ygrid=True)
+    axes[0].set_ylabel('consensus (q95)')
+
+    from matplotlib.lines import Line2D
+    handles = [Line2D([], [], marker='o', ls='', color=c, label=l)
+               for c, l in zip(mcolors, mlabels)]
+    handles += [Line2D([], [], marker='o', ls='', color=MUT, label='fallback fold'),
+                Line2D([], [], marker='_', ls='', color=INK2, ms=10,
+                       label='window background q95')]
+    fig.legend(handles=handles, loc='upper right', bbox_to_anchor=(0.995, 1.13),
+               frameon=False, fontsize=8, ncol=3)
+    fig.suptitle('Replaying history: every eruption forecast with only '
+                 'prior information', x=0.005, ha='left', fontsize=12.5,
+                 fontweight='bold', y=1.13)
+    fig.text(0.005, 1.045,
+             'Dot = pre-eruption consensus (q95, 2-day window); tick = that '
+             'unrest month’s background q95. A dot above its tick means the '
+             'precursor stood out\nfrom its own crisis month. "pick" = the pool '
+             'the prospective selection chose using only earlier eruptions.',
+             fontsize=8.6, color=INK2, va='top')
+    fig.tight_layout()
+    save(fig, 'F6_prospective_replay')
+
+
 if __name__ == '__main__':
     fig1()
     fig2()
     fig3()
     fig4()
     fig5()
+    fig6()
     print('figure pack complete ->', FIG)
