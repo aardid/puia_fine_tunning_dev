@@ -619,9 +619,71 @@ def fig9():
     import matplotlib.dates as mdates
     from datetime import datetime, timedelta
     te = datetime(2019, 12, 9, 1, 11)
-    w0, t1 = te - timedelta(days=30.4), te + timedelta(days=4)
-    df = pd.read_pickle(os.path.join(REPO, r'forecasts\phase_b_wiz\WIZ_2019.pkl'))
-    o = df['O'][(df.index >= w0) & (df.index <= t1)]
+    YTOP = 1.05          # 5% above the 100% consensus ceiling
+
+    # 2 years + 30-day threshold warm-up of the Ontake-only pool consensus
+    ctx0 = te - timedelta(days=2 * 365.25)
+    files = [os.path.join(REPO, rf'forecasts\phase_b_wiz\WIZ_{y}.pkl')
+             for y in (2017, 2018, 2019)]
+    df = pd.concat([pd.read_pickle(f) for f in files])
+    df = df[~df.index.duplicated()].sort_index()
+    o_all = df['O'][(df.index >= ctx0 - timedelta(days=32)) &
+                    (df.index <= te + timedelta(days=4))]
+
+    # causal alert rule (same as alert_rule_analysis.py): 12-h median above
+    # the trailing 30-day q99 (shifted 1 h) for >= 6 consecutive hours
+    o1h = o_all.resample('1h').median().dropna()
+    med1h = o1h.rolling(12, min_periods=6).median()
+    thr1h = o1h.rolling(720, min_periods=240).quantile(0.99).shift(1)
+    active = (med1h > thr1h) & thr1h.notna()
+    episodes, onset_, run = [], None, 0
+    for t, a in active.items():
+        if a:
+            run += 1
+            if run == 6:
+                onset_ = t - timedelta(hours=5)
+        else:
+            if onset_ is not None:
+                episodes.append((onset_, t))
+                onset_ = None
+            run = 0
+    if onset_ is not None:
+        episodes.append((onset_, active.index[-1]))
+    episodes = [(a, b) for a, b in episodes if a >= ctx0]
+    pre = [(a, b) for a, b in episodes if a < te and b > te - timedelta(days=10)]
+    n_fa = len(episodes) - len(pre)
+
+    fig, axes = plt.subplots(2, 1, figsize=(11.5, 7.6))
+
+    # --- (a) two-year context with every alert episode shaded ---
+    ax = axes[0]
+    ov = o_all[o_all.index >= ctx0]
+    ax.plot(ov.index, ov.values, lw=0.3, color=C1, alpha=0.30)
+    m = ov.rolling('5D').median()
+    ax.plot(m.index, m.values, lw=1.5, color='#104281',
+            label='Ontake-only pool, 5-day median')
+    ax.plot(thr1h.index, thr1h.values, lw=1.0, ls=':', color=INK2,
+            label='causal alert threshold (trailing 30-day q99)')
+    for a, b in episodes:
+        ax.axvspan(a, b, color='#eda100', alpha=0.35)
+    ax.axvline(te, color='#e34948', ls='--', lw=1.5)
+    ax.text(te - timedelta(days=18), 1.0, 'eruption', color='#e34948',
+            fontsize=9, va='top', ha='right')
+    ax.set_xlim(ctx0, te + timedelta(days=4))
+    ax.set_ylim(0, YTOP)
+    ax.set_ylabel('consensus')
+    style_ax(ax, ygrid=True)
+    ax.legend(loc='upper left', frameon=False, fontsize=8.5)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+    ax.set_title(f'(a) the two years before: {len(episodes)} alert episodes '
+                 f'(orange), {n_fa} of them false alarms '
+                 f'(≈{n_fa/2:.0f} per year) — the last one precedes the '
+                 'eruption', loc='left', fontsize=10.5, color=INK)
+
+    # --- (b) final-month zoom (fixed Nov-background threshold, as before) ---
+    ax = axes[1]
+    w0 = te - timedelta(days=30.4)
+    o = o_all[(o_all.index >= w0) & (o_all.index <= te + timedelta(days=4))]
     res = pd.read_pickle(os.path.join(REPO, r'forecasts\phase_g\WIZ__e4.pkl'))
     tb = res['tboost']
     bg = o[o.index < te - timedelta(days=10)]
@@ -634,8 +696,6 @@ def fig9():
         if run >= 36:
             onset = t - timedelta(hours=6)
             break
-
-    fig, ax = plt.subplots(figsize=(11.5, 4.6))
     ax.plot(o.index, o.values, lw=0.4, color=C1, alpha=0.35)
     ax.plot(med.index, med.values, lw=1.9, color='#104281',
             label='Ontake-only pool, 12-h median')
@@ -652,21 +712,21 @@ def fig9():
                 color=INK, arrowprops=dict(arrowstyle='->', color=INK2, lw=1))
     ax.text(te + timedelta(hours=8), 1.0, 'eruption\nDec 9, 2019',
             color='#e34948', fontsize=9, va='top')
-    ax.set_ylim(0, 1.05)
+    ax.set_ylim(0, YTOP)
     ax.set_ylabel('consensus')
     style_ax(ax, ygrid=True)
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
     ax.legend(loc='upper left', frameon=False, fontsize=9)
-    fig.suptitle('Whakaari, December 2019: a nine-day sustained alert from '
-                 'the Ontake-trained pool', x=0.005, ha='left',
-                 fontsize=12.5, fontweight='bold', y=1.06)
-    fig.text(0.005, 0.985,
-             'Caveat: under the same causal rule this model fires ~11 false '
-             'episodes per year at Whakaari (F8) — the escalation is real, '
-             'but so is the alarm cost. Pool selected retrospectively; '
-             'the target-boosted trace is fully prospective.',
+    ax.set_title('(b) the final month', loc='left', fontsize=10.5, color=INK)
+
+    fig.suptitle('Whakaari, December 2019: a nine-day sustained alert — and '
+                 'what the same rule costs in false alarms', x=0.005,
+                 ha='left', fontsize=12.5, fontweight='bold', y=1.005)
+    fig.text(0.005, 0.968,
+             'Ontake-only pool consensus. Pool highlighted retrospectively; '
+             'the target-boosted trace in (b) is fully prospective.',
              fontsize=8.6, color=INK2, va='top')
-    fig.tight_layout(rect=[0, 0, 1, 0.93])
+    fig.tight_layout(rect=[0, 0, 1, 0.955])
     save(fig, 'F9_wiz2019_case_study')
 
 
