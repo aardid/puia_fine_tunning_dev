@@ -776,8 +776,12 @@ def fig10():
     tt = thr[(thr.index >= ctx0) & (thr.index <= te + timedelta(days=4))]
     ax.plot(tt.index, tt.values, lw=1.0, ls=':', color=INK2,
             label=f'optimal threshold (trailing {LB_D}-day q{Q})')
+    # 10-day warning period following each alert trigger (lighter fill)
     for a, b in eps2:
-        ax.axvspan(a, b, color='#eda100', alpha=0.45)
+        ax.axvspan(a, a + timedelta(days=10), color='#eda100', alpha=0.15,
+                   lw=0)
+    for a, b in eps2:
+        ax.axvspan(a, b, color='#eda100', alpha=0.45, lw=0)
     ax.axvline(te, color='#e34948', ls='--', lw=1.5)
     ax.text(te - timedelta(days=18), YTOP * 0.97, 'eruption',
             color='#e34948', fontsize=9, va='top', ha='right')
@@ -793,7 +797,12 @@ def fig10():
     ax.set_ylim(0, YTOP)
     ax.set_ylabel('consensus')
     style_ax(ax, ygrid=True)
-    ax.legend(loc='upper left', frameon=False, fontsize=8.5)
+    from matplotlib.patches import Patch
+    h, l = ax.get_legend_handles_labels()
+    h += [Patch(facecolor='#eda100', alpha=0.45, label='alert episode'),
+          Patch(facecolor='#eda100', alpha=0.15,
+                label='10-day warning period after trigger')]
+    ax.legend(handles=h, loc='upper left', frameon=False, fontsize=8.5)
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
     ax.set_title(f'(a) the optimal rule over the same two years: '
                  f'{nfa} false alarm{"s" if nfa != 1 else ""}, and the '
