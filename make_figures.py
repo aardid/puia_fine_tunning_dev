@@ -472,6 +472,93 @@ def fig6():
     save(fig, 'F6_prospective_replay')
 
 
+# ============================================================
+# F7 — operational time series (prospective, "what the screen showed")
+# ============================================================
+def _master_window(path, t0, t1, col='consensus'):
+    con = pd.read_pickle(path)[col]
+    return con[(con.index >= t0) & (con.index <= t1)]
+
+
+def fig7():
+    import matplotlib.dates as mdates
+    from datetime import datetime, timedelta
+
+    fig, axes = plt.subplots(2, 1, figsize=(11, 7.4))
+
+    # --- (a) Whakaari, December 2019 ---
+    ax = axes[0]
+    te = datetime(2019, 12, 9, 1, 11)
+    res = pd.read_pickle(os.path.join(REPO, r'forecasts\phase_g\WIZ__e4.pkl'))
+    tb = res['tboost']
+    t0, t1 = tb.index[0], tb.index[-1]
+    wizyears = pd.concat([pd.read_pickle(os.path.join(
+        REPO, rf'forecasts\phase_b_wiz\WIZ_{y}.pkl')) for y in (2019,)])
+    full = wizyears['full'][(wizyears.index >= t0) & (wizyears.index <= t1)]
+    cur = wizyears['OS'][(wizyears.index >= t0) & (wizyears.index <= t1)]
+    for s, c, lb in [(full, C1, 'full pool'), (cur, C2, 'curated pool (O+S)')]:
+        ax.plot(s.index, s.values, lw=0.4, color=c, alpha=0.30)
+        m = s.rolling('12h').median()
+        ax.plot(m.index, m.values, lw=1.8, color=c, label=lb)
+    ax.plot(tb.index, tb.values, lw=1.2, color='#c98500',
+            label='target-boosted (raw)')
+    ax.axvline(te, color='#e34948', ls='--', lw=1.4)
+    ax.axvspan(te - timedelta(days=2), te, color='#eda100', alpha=0.18)
+    first = tb[(tb >= 0.8) & (tb.index < te)].index[0]
+    ax.annotate('first alert\n3.4 days before eruption',
+                xy=(first, 0.82), xytext=(first - timedelta(days=12), 0.86),
+                fontsize=9, color=INK,
+                arrowprops=dict(arrowstyle='->', color=INK2, lw=1))
+    ax.text(te + timedelta(hours=8), 0.98, 'eruption\nDec 9, 2019',
+            color='#e34948', fontsize=9, va='top')
+    ax.set_ylim(0, 1.05)
+    ax.set_ylabel('consensus')
+    ax.set_title('(a) Whakaari, November–December 2019 — trained only on '
+                 'data before this window', loc='left', fontsize=10.5,
+                 color=INK)
+    style_ax(ax, ygrid=True)
+    ax.legend(loc='upper left', frameon=False, fontsize=8.5)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
+
+    # --- (b) Ruapehu, July 2009 ---
+    ax = axes[1]
+    te = datetime(2009, 7, 13, 6, 30)
+    res = pd.read_pickle(os.path.join(REPO, r'forecasts\phase_g\FWVZ__e2.pkl'))
+    ser = res['ser_us']
+    t0, t1 = ser.index[0], ser.index[-1]
+    full = _master_window(os.path.join(
+        REPO, r'forecasts\phase_b\FWVZ__full\consensus_master.pkl'), t0, t1)
+    cur = _master_window(os.path.join(
+        REPO, r'forecasts\phase_b\FWVZ__no_WIZ\consensus_master.pkl'), t0, t1)
+    for s, c, lb in [(full, C1, 'full pool'),
+                     (cur, C2, 'curated pool (K+O+S)'),
+                     (ser, C3, 'refined trees (ser_us)')]:
+        ax.plot(s.index, s.values, lw=0.4, color=c, alpha=0.30)
+        m = s.rolling('12h').median()
+        ax.plot(m.index, m.values, lw=1.8, color=c, label=lb)
+    ax.axvline(te, color='#e34948', ls='--', lw=1.4)
+    ax.axvspan(te - timedelta(days=2), te, color='#eda100', alpha=0.18)
+    ax.text(te + timedelta(hours=8), 0.98, 'eruption\nJul 13, 2009',
+            color='#e34948', fontsize=9, va='top')
+    ax.set_ylim(0, 1.05)
+    ax.set_ylabel('consensus')
+    ax.set_title('(b) Ruapehu, June–July 2009 — pool selected and trees '
+                 'refined using only the 2006–2007 eruptions', loc='left',
+                 fontsize=10.5, color=INK)
+    style_ax(ax, ygrid=True)
+    ax.legend(loc='upper left', frameon=False, fontsize=8.5)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
+
+    fig.suptitle('What the duty officer would have seen — forecasts using '
+                 'only prior information', x=0.005, ha='left', fontsize=12.5,
+                 fontweight='bold', y=1.005)
+    fig.text(0.005, 0.965, 'Thin traces: raw 10-minute consensus; bold: '
+             '12-hour rolling median; orange band: the 2-day alert window '
+             'before each eruption.', fontsize=9, color=INK2)
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    save(fig, 'F7_operational_view')
+
+
 if __name__ == '__main__':
     fig1()
     fig2()
@@ -479,4 +566,5 @@ if __name__ == '__main__':
     fig4()
     fig5()
     fig6()
+    fig7()
     print('figure pack complete ->', FIG)
