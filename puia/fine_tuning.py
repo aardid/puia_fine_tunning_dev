@@ -246,3 +246,91 @@ def predict_consensus(refined, fM):
     for rt, fts in refined:
         total += rt.predict(build_X(fM, fts)).astype(float)
     return total / len(refined)
+
+
+# ============================================================
+# Phase D: multi-source TrAdaBoost (Dai et al. 2007)
+# ============================================================
+class TransferBoostEnsemble:
+    """Instance-weighted boosting transfer: source instances that weak
+    learners consistently misclassify (w.r.t. target-aware training) are
+    progressively downweighted; misclassified TARGET instances are
+    upweighted (AdaBoost). Prediction uses the second half of the learners,
+    weighted by log(1/beta_t), returning a [0,1] consensus-like score.
+
+    Initial weights are class-balanced within each domain and the two
+    domains start with equal total weight (the extreme class imbalance and
+    source/target size ratio would otherwise swamp the target).
+
+    Tracks per-source-station weight fractions so we can see which sources
+    the boosting decides to keep — the automatic analogue of Phase B's
+    pool curation.
+    """
+
+    def __init__(self, n_iterations=40, max_depth=6, random_state=0):
+        self.n_iterations = n_iterations
+        self.max_depth = max_depth
+        self.random_state = random_state
+        self.learners = []          # (tree, alpha) for the used half
+        self.features = None
+        self.src_weight_history = []
+
+    def fit(self, Xs, ys, src_station, Xt, yt, features):
+        from sklearn.tree import DecisionTreeClassifier
+        self.features = list(features)
+        Xs = np.asarray(Xs, float)
+        Xt = np.asarray(Xt, float)
+        ys = np.asarray(ys) > 0
+        yt = np.asarray(yt) > 0
+        src_station = np.asarray(src_station)
+        n_s, n_t = len(ys), len(yt)
+
+        def balanced(y):
+            npos = max(int(y.sum()), 1)
+            nneg = max(len(y) - int(y.sum()), 1)
+            w = np.where(y, 1. / (2 * npos), 1. / (2 * nneg))
+            return w / w.sum()
+
+        w_s = balanced(ys)          # sums to 1
+        w_t = balanced(yt)          # sums to 1
+        beta_src = 1. / (1. + np.sqrt(2. * np.log(max(n_s, 2)) / self.n_iterations))
+
+        X_all = np.vstack([Xs, Xt])
+        y_all = np.concatenate([ys, yt])
+        all_learners = []
+        for t in range(self.n_iterations):
+            w = np.concatenate([w_s, w_t])
+            w = w / w.sum()
+            h = DecisionTreeClassifier(max_depth=self.max_depth,
+                                       random_state=self.random_state + t)
+            h.fit(X_all, y_all, sample_weight=w)
+            pred = h.predict(X_all)
+            wrong_s = pred[:n_s] != ys
+            wrong_t = pred[n_s:] != yt
+            eps = float((w_t / w_t.sum() * wrong_t).sum())
+            eps = min(max(eps, 1e-6), 0.499)
+            beta_t = eps / (1. - eps)
+            all_learners.append((h, np.log(1. / beta_t)))
+            # updates: target wrong -> upweight; source wrong -> downweight
+            w_t = w_t * np.power(beta_t, -wrong_t.astype(float))
+            w_s = w_s * np.power(beta_src, wrong_s.astype(float))
+            # renormalise domains jointly (keeps relative source decay)
+            z = w_s.sum() + w_t.sum()
+            w_s, w_t = w_s / z, w_t / z
+            frac = {sta: float(w_s[src_station == sta].sum() / max(w_s.sum(), 1e-300))
+                    for sta in np.unique(src_station)}
+            frac['_target_total'] = float(w_t.sum() / (w_s.sum() + w_t.sum()))
+            self.src_weight_history.append(frac)
+
+        self.learners = all_learners[self.n_iterations // 2:]
+        return self
+
+    def predict_score(self, fM):
+        X = fM.reindex(columns=self.features, fill_value=0.)
+        X = X.fillna(1.e-8).values.astype(float)
+        num = np.zeros(len(X))
+        den = 0.
+        for h, a in self.learners:
+            num += a * h.predict(X).astype(float)
+            den += a
+        return num / max(den, 1e-300)
