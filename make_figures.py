@@ -118,14 +118,13 @@ def fig1():
         style_ax(ax, xgrid=True)
         ax.set_xlabel('eruption AUC (target fully out-of-sample)')
     from matplotlib.lines import Line2D
-    fig.legend(handles=[
+    axes[0].legend(handles=[
         Line2D([], [], marker='o', ls='', color=C1, label='pool without Whakaari'),
         Line2D([], [], marker='o', ls='', color=C2, label='pool contains Whakaari')],
-        loc='upper right', bbox_to_anchor=(0.995, 1.10), frameon=False,
-        fontsize=12, ncol=2)
+        loc='lower left', frameon=False, fontsize=10.5)
     fig.suptitle('Every Whakaari-free pool beats every Whakaari-containing pool',
-                 x=0.005, ha='left', fontsize=17, fontweight='bold', y=1.10)
-    fig.text(0.005, 1.03,
+                 x=0.005, ha='left', fontsize=17, fontweight='bold', y=1.12)
+    fig.text(0.005, 1.02,
              'AUC of all 15 source-pool subsets, leave-target-volcano-out '
              '(W=Whakaari, F=Ruapehu, K=Tongariro, O=Ontake, S=St Helens)',
              fontsize=12, color=INK2)
@@ -263,7 +262,7 @@ def fig3():
             ax.text(xi, v + 0.015, f'{v:.0%}', ha='center', fontsize=11,
                     color=INK2)
     ax.set_xticks(x)
-    ax.set_xticklabels([k.replace('\n', ' ') for k in order], fontsize=11)
+    ax.set_xticklabels(order, fontsize=10)
     ax.set_ylim(0, 1)
     ax.set_yticks([0, 0.25, 0.5, 0.75, 1.0])
     ax.set_yticklabels(['0%', '25%', '50%', '75%', '100%'])
@@ -274,8 +273,8 @@ def fig3():
 
     fig.suptitle('Why Whakaari poisons pools: loudness does not transfer, '
                  'waveform shape does', x=0.005, ha='left', fontsize=17,
-                 fontweight='bold', y=1.04)
-    fig.text(0.005, 0.965, 'With Whakaari in the pool, feature selection locks '
+                 fontweight='bold', y=1.12)
+    fig.text(0.005, 1.02, 'With Whakaari in the pool, feature selection locks '
              'onto raw-amplitude statistics; without it, selection shifts to '
              'temporal-structure features that transfer between volcanoes',
              fontsize=12, color=INK2)
@@ -315,10 +314,11 @@ def fig4():
                 color=SURF, fontweight='bold')
     ax.set_xticks(x)
     ax.set_xticklabels(tlabels, fontsize=13)
-    ax.set_ylim(0, 1.05)
+    ax.set_ylim(0, 1.18)
+    ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1.0])
     ax.set_ylabel('pseudo-prospective eruption AUC')
     style_ax(ax, ygrid=True)
-    ax.legend(ncol=2, loc='upper left', frameon=False, fontsize=11.5)
+    ax.legend(ncol=2, loc='upper center', frameon=False, fontsize=11.5)
     fig.suptitle('Prospective test: curation always helps; local boosting '
                  'needs eruption history', x=0.005, ha='left', fontsize=17,
                  fontweight='bold', y=1.06)
@@ -374,14 +374,12 @@ def fig5():
     ax.set_ylabel('AUC change from refining on target data')
     style_ax(ax, ygrid=True)
     ax.legend(loc='lower right', bbox_to_anchor=(0.99, 0.30), frameon=False,
-              fontsize=11.5)
-    ax.set_title('Fine-tuning is unreliable below five eruptions — and '
-                 'consistently helps at five', loc='left', fontsize=17,
-                 fontweight='bold', pad=14)
-    ax.text(0, 1.015, 'Change in eruption AUC when the foreign-trained '
-            'ensemble is refined on the target volcano’s own data '
-            '(leave-one-eruption-out)', transform=ax.transAxes, fontsize=12,
-            color=INK2)
+              fontsize=10.5)
+    ax.set_title('Fine-tuning is unreliable below five eruptions',
+                 loc='left', fontsize=17, fontweight='bold', pad=56)
+    ax.text(0, 1.02, 'Change in eruption AUC when the foreign-trained\n'
+            'ensemble is refined on the target volcano’s own data',
+            transform=ax.transAxes, fontsize=11.5, color=INK2, va='bottom')
     fig.tight_layout()
     save(fig, 'F5_decision_ladder')
 
@@ -457,12 +455,12 @@ def fig6():
     handles += [Line2D([], [], marker='o', ls='', color=MUT, label='fallback fold'),
                 Line2D([], [], marker='_', ls='', color=INK2, ms=10,
                        label='window background q95')]
-    fig.legend(handles=handles, loc='upper right', bbox_to_anchor=(0.995, 1.13),
-               frameon=False, fontsize=11, ncol=3)
+    fig.legend(handles=handles, loc='upper right', bbox_to_anchor=(0.995, 1.28),
+               frameon=False, fontsize=10, ncol=2)
     fig.suptitle('Replaying history: every eruption forecast with only '
                  'prior information', x=0.005, ha='left', fontsize=17,
-                 fontweight='bold', y=1.13)
-    fig.text(0.005, 1.045,
+                 fontweight='bold', y=1.27)
+    fig.text(0.005, 1.14,
              'Dot = pre-eruption consensus (q95, 2-day window); tick = that '
              'unrest month’s background q95. A dot above its tick means the '
              'precursor stood out\nfrom its own crisis month. "pick" = the pool '
@@ -519,6 +517,7 @@ def fig7():
     style_ax(ax, ygrid=True)
     ax.legend(loc='upper left', frameon=False, fontsize=11.5)
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
+    ax.xaxis.set_major_locator(mdates.DayLocator(interval=4))
 
     # --- (b) Ruapehu, July 2009 ---
     ax = axes[1]
@@ -548,11 +547,12 @@ def fig7():
     style_ax(ax, ygrid=True)
     ax.legend(loc='upper left', frameon=False, fontsize=11.5)
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
+    ax.xaxis.set_major_locator(mdates.DayLocator(interval=4))
 
     fig.suptitle('What the duty officer would have seen — forecasts using '
                  'only prior information', x=0.005, ha='left', fontsize=17,
-                 fontweight='bold', y=1.005)
-    fig.text(0.005, 0.965, 'Thin traces: raw 10-minute consensus; bold: '
+                 fontweight='bold', y=1.04)
+    fig.text(0.005, 0.985, 'Thin traces: raw 10-minute consensus; bold: '
              '12-hour rolling median; orange band: the 2-day alert window '
              'before each eruption.', fontsize=12, color=INK2)
     fig.tight_layout(rect=[0, 0, 1, 0.95])
@@ -600,11 +600,11 @@ def fig8():
         ax.set_title(tnames[t], loc='left', fontsize=13.5, color=INK)
         ax.set_xlabel('false alarms per year')
         style_ax(ax, ygrid=True)
-    axes[0].set_ylabel('eruptions detected (sustained alert in final 10 days)')
+    axes[0].set_ylabel('eruptions detected')
     fig.suptitle('A sustained-alert rule only works at Whakaari — short '
                  'precursors elsewhere need the 2-day window metric',
-                 x=0.005, ha='left', fontsize=17, fontweight='bold', y=1.09)
-    fig.text(0.005, 1.015,
+                 x=0.005, ha='left', fontsize=17, fontweight='bold', y=1.14)
+    fig.text(0.005, 1.03,
              'Causal rule: alert when the 12-h median exceeds the trailing '
              '30-day q99 for 6+ hours. Blue = Whakaari-free pool, orange = '
              'contains Whakaari.', fontsize=12, color=INK2)
@@ -716,13 +716,15 @@ def fig9():
     ax.set_ylabel('consensus')
     style_ax(ax, ygrid=True)
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
-    ax.legend(loc='upper left', frameon=False, fontsize=12)
+    ax.xaxis.set_major_locator(mdates.DayLocator(interval=4))
+    ax.legend(loc='upper left', frameon=True, facecolor=SURF, edgecolor='none',
+              framealpha=0.9, fontsize=11)
     ax.set_title('(b) the final month', loc='left', fontsize=14, color=INK)
 
     fig.suptitle('Whakaari, December 2019: a nine-day sustained alert — and '
                  'what the same rule costs in false alarms', x=0.005,
-                 ha='left', fontsize=17, fontweight='bold', y=1.005)
-    fig.text(0.005, 0.968,
+                 ha='left', fontsize=17, fontweight='bold', y=1.04)
+    fig.text(0.005, 0.99,
              'Ontake-only pool consensus. Pool highlighted retrospectively; '
              'the target-boosted trace in (b) is fully prospective.',
              fontsize=11.5, color=INK2, va='top')
@@ -804,9 +806,8 @@ def fig10():
                 label='10-day warning period after trigger')]
     ax.legend(handles=h, loc='upper left', frameon=False, fontsize=11.5)
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
-    ax.set_title(f'(a) the optimal rule over the same two years: '
-                 f'{nfa} false alarm{"s" if nfa != 1 else ""}, and the '
-                 'pre-eruption alert survives', loc='left', fontsize=14,
+    ax.set_title(f'(a) the optimal rule, two years: {nfa} false '
+                 f'alarm{"s" if nfa != 1 else ""}', loc='left', fontsize=14,
                  color=INK)
 
     # --- (b) operating curve from the sweep ---
@@ -829,7 +830,7 @@ def fig10():
     ax.scatter([10.8], [0.4], color=C1, s=60, zorder=5, edgecolor=SURF,
                linewidth=0.8, label='original heuristic')
     ax.annotate('optimum for 2019\n(1.1 FA/yr, 8.8-d lead)',
-                xy=(1.1, 0.2), xytext=(2.6, 0.06), fontsize=11, color=INK2,
+                xy=(1.1, 0.2), xytext=(3.4, 0.07), fontsize=11, color=INK2,
                 arrowprops=dict(arrowstyle='->', color=INK2, lw=0.9))
     ax.set_xlim(0, 13)
     ax.set_ylim(-0.04, 0.72)
@@ -838,14 +839,15 @@ def fig10():
     ax.set_xlabel('false alarms per year')
     ax.set_ylabel('eruptions detected')
     style_ax(ax, ygrid=True)
-    ax.legend(loc='lower right', frameon=False, fontsize=11)
+    ax.legend(loc='lower right', frameon=True, facecolor=SURF,
+              edgecolor='none', framealpha=0.9, fontsize=10)
     ax.set_title('(b) detection vs false-alarm frontier', loc='left',
                  fontsize=14, color=INK)
 
     fig.suptitle('Tuning the alert rule: an order of magnitude fewer false '
                  'alarms at the same nine-day lead', x=0.005, ha='left',
-                 fontsize=17, fontweight='bold', y=1.07)
-    fig.text(0.005, 0.995,
+                 fontsize=17, fontweight='bold', y=1.10)
+    fig.text(0.005, 1.02,
              'Rule parameters swept in-sample over 2010-2020 (quantile, '
              'lookback, median window, sustain); the Dec-2019 lead is '
              'robust across 134/240 settings (8.6-9.5 days).',
@@ -1014,16 +1016,17 @@ def m3():
                 color=SURF, fontweight='bold')
     ax.set_xticks(x)
     ax.set_xticklabels(tlabels, fontsize=11.5)
-    ax.set_ylim(0, 1.02)
+    ax.set_ylim(0, 1.16)
+    ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1.0])
     ax.set_ylabel('pseudo-prospective eruption AUC', fontsize=12)
     style_ax(ax, ygrid=True)
-    ax.legend(ncol=2, loc='upper left', frameon=False, fontsize=10.5)
+    ax.legend(ncol=2, loc='upper center', frameon=False, fontsize=10.5)
     ax.set_title('(b) prospective test: curation always helps; boosting '
                  'needs history', loc='left', fontsize=13.5, color=INK)
 
     fig.suptitle('When does adapting to the target pay?', x=0.005, ha='left',
-                 fontsize=17.5, fontweight='bold', y=1.07)
-    fig.text(0.005, 1.0,
+                 fontsize=17.5, fontweight='bold', y=1.13)
+    fig.text(0.005, 1.03,
              '(a) leave-one-eruption-out refinement gain vs eruption count; '
              '(b) all target information restricted to before each eruption, '
              'scored on unrest-month windows (* = score carried by the '
@@ -1133,7 +1136,7 @@ def m4():
     ax.annotate(f'sustained alert begins\n'
                 f'{(te-onset).total_seconds()/86400:.1f} days before eruption',
                 xy=(onset, thrb + 0.02),
-                xytext=(onset - timedelta(days=9), 0.68), fontsize=12,
+                xytext=(onset - timedelta(days=7), 0.44), fontsize=12,
                 color=INK, arrowprops=dict(arrowstyle='->', color=INK2, lw=1))
     ax.text(te + timedelta(hours=8), YTOP * 0.97, 'eruption\nDec 9, 2019',
             color='#e34948', fontsize=11.5, va='top')
@@ -1141,7 +1144,9 @@ def m4():
     ax.set_ylabel('consensus')
     style_ax(ax, ygrid=True)
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
-    ax.legend(loc='upper left', frameon=False, fontsize=11)
+    ax.xaxis.set_major_locator(mdates.DayLocator(interval=4))
+    ax.legend(loc='upper left', frameon=True, facecolor=SURF,
+              edgecolor='none', framealpha=0.9, fontsize=10.5)
     ax.set_title('(b) the final month before the December 2019 eruption',
                  loc='left', fontsize=13.5, color=INK)
 
