@@ -854,6 +854,337 @@ def fig10():
     save(fig, 'F10_optimal_alert_rule')
 
 
+# ============================================================
+# Paper composites (main figures M1-M4; M2 = F3 unchanged)
+# ============================================================
+def m1():
+    """M1 = F1 + F2: the curation rule and its out-of-pool generalization."""
+    panels = []
+    for target, f in [('FWVZ', r'forecasts\phase_b\ablation_FWVZ.csv'),
+                      ('KRVZ', r'forecasts\phase_b\ablation_KRVZ.csv')]:
+        df = pd.read_csv(os.path.join(REPO, f))
+        df['pool'] = df.variant.map(lambda v: pool_of_variant(target, v))
+        panels.append((target, df))
+    dfw = pd.read_csv(os.path.join(REPO, r'forecasts\phase_b_wiz\ablation_WIZ.csv'))
+    dfw['pool'] = dfw.sources.map(lambda s: s.split('+'))
+    panels.append(('WIZ', dfw))
+
+    fig = plt.figure(figsize=(12.5, 9.2))
+    gs = fig.add_gridspec(2, 3, height_ratios=[1.15, 1], hspace=0.35,
+                          wspace=0.28)
+    names = {'FWVZ': 'Ruapehu (FWVZ)', 'KRVZ': 'Tongariro (KRVZ)',
+             'WIZ': 'Whakaari (WIZ)'}
+    for i, (target, df) in enumerate(panels):
+        ax = fig.add_subplot(gs[0, i])
+        df = df.copy()
+        df['label'] = df.pool.map(pool_label)
+        df['wiz'] = df.pool.map(lambda p: 'WIZ' in p)
+        df = df.sort_values('auc').reset_index(drop=True)
+        colors = [C2 if w else C1 for w in df.wiz]
+        ax.hlines(range(len(df)), 0.4, df.auc, color=GRID, lw=0.7, zorder=1)
+        ax.scatter(df.auc, range(len(df)), c=colors, s=36, zorder=3)
+        ax.set_yticks(range(len(df)))
+        ax.set_yticklabels(df.label, fontsize=7.5)
+        best = df.iloc[-1]
+        ax.annotate(f'{best.auc:.3f}', (best.auc, len(df) - 1),
+                    xytext=(4, 0), textcoords='offset points', va='center',
+                    fontsize=8, color=INK)
+        ax.set_xlim(0.4, 1.02)
+        ax.set_title(f'({chr(97+i)}) target: {names[target]}', loc='left',
+                     fontsize=10, color=INK)
+        style_ax(ax, xgrid=True)
+        ax.set_xlabel('eruption AUC (target out-of-sample)', fontsize=8.5)
+
+    # (d) external validation
+    ax = fig.add_subplot(gs[1, :])
+    df = pd.read_csv(os.path.join(
+        REPO, r'forecasts\phase_b_external\external_validation.csv'))
+    piv = df.pivot(index='target', columns='ensemble', values='auc')
+    nev = df.groupby('target').n_events.first()
+    piv = piv.sort_values('KOS')
+    names2 = {'PN7A': 'Pavlof (PN7A)', 'PVV': 'Pavlof (PVV)',
+              'VNSS': 'Veniaminof', 'BELO': 'Bezymianny', 'COP': 'Copahue',
+              'MBGH': 'Montserrat', 'VRLE': 'VRLE', 'VTUN': 'VTUN'}
+    y = np.arange(len(piv))
+    for i, (t, r) in enumerate(piv.iterrows()):
+        ax.plot([r['all5'], r['KOS']], [i, i], color=GRID, lw=2, zorder=1)
+    ax.scatter(piv['all5'], y, color=C2, s=48, zorder=3,
+               label='all 5 sources (generalized model)')
+    ax.scatter(piv['KOS'], y, color=C1, s=48, zorder=3,
+               label='curated pool K+O+S (no Whakaari)')
+    ax.set_yticks(y)
+    ax.set_yticklabels([f'{names2.get(t, t)}  (n={nev[t]})' for t in piv.index],
+                       fontsize=8.5)
+    style_ax(ax, xgrid=True)
+    ax.set_xlabel('eruption AUC — 31 eruptions never seen by any model',
+                  fontsize=9)
+    ax.set_xlim(0.1, 1.0)
+    ax.legend(loc='upper left', frameon=False, fontsize=8.5)
+    ax.set_title('(d) external validation: the curated pool wins on 8 of 8 '
+                 'out-of-pool volcanoes', loc='left', fontsize=10, color=INK)
+
+    from matplotlib.lines import Line2D
+    fig.legend(handles=[
+        Line2D([], [], marker='o', ls='', color=C1, label='pool without Whakaari'),
+        Line2D([], [], marker='o', ls='', color=C2, label='pool contains Whakaari')],
+        loc='upper right', bbox_to_anchor=(0.995, 1.045), frameon=False,
+        fontsize=9, ncol=2)
+    fig.suptitle('Source-pool curation: every Whakaari-free pool beats every '
+                 'Whakaari-containing pool', x=0.005, ha='left', fontsize=13,
+                 fontweight='bold', y=1.045)
+    fig.text(0.005, 1.0,
+             '(a–c) all 15 source-pool subsets per target, leave-target-'
+             'volcano-out (W=Whakaari, F=Ruapehu, K=Tongariro, O=Ontake, '
+             'S=St Helens); (d) trained ensembles applied unchanged to '
+             'volcanoes outside the pool.', fontsize=9, color=INK2)
+    fig.tight_layout()
+    save(fig, 'M1_curation_and_generalization')
+
+
+def m3():
+    """M3 = F5 + F4: when does adaptation to the target pay?"""
+    fig, axes = plt.subplots(1, 2, figsize=(12.8, 4.8),
+                             gridspec_kw={'width_ratios': [1, 1.15]})
+
+    # (a) ladder (F5)
+    ax = axes[0]
+    r1 = pd.read_csv(os.path.join(REPO, r'forecasts\phase_c\phase_c_results.csv'))
+    r2 = pd.read_csv(os.path.join(
+        REPO, r'forecasts\phase_c\phase_c_results_variants.csv'))
+    rw = pd.read_csv(os.path.join(
+        REPO, r'forecasts\phase_c\phase_c_results_WIZ.csv'))
+    allr = pd.concat([r1, r2, rw])
+    allr = allr[allr.base == 'full']
+    base = {t: allr[(allr.target == t) &
+                    (allr.method == 'base (no refinement)')].auc.iloc[0]
+            for t in ['FWVZ', 'KRVZ', 'WIZ']}
+    nerup = {'KRVZ': 2, 'FWVZ': 3, 'WIZ': 5}
+    methods = ['strut', 'ser', 'strut_us', 'ser_us']
+    mlabels = ['STRUT', 'SER', 'STRUT (per-tree undersample)',
+               'SER (per-tree undersample)']
+    mcolors = [C1, C2, C3, C4]
+    ax.axhline(0, color=BASE, lw=1)
+    ax.text(5.55, 0.006, 'helps', fontsize=8, color=INK2, va='bottom')
+    ax.text(5.55, -0.012, 'harms', fontsize=8, color=INK2, va='top')
+    for m, ml, c in zip(methods, mlabels, mcolors):
+        xs, ys = [], []
+        for t in ['KRVZ', 'FWVZ', 'WIZ']:
+            row = allr[(allr.target == t) & (allr.method == m)]
+            if len(row):
+                xs.append(nerup[t])
+                ys.append(row.auc.iloc[0] - base[t])
+        ax.plot(xs, ys, color=c, lw=2, marker='o', ms=6.5, label=ml,
+                markeredgecolor=SURF, markeredgewidth=1.2)
+    ax.set_xticks([2, 3, 5])
+    ax.set_xticklabels(['2\n(Tongariro)', '3\n(Ruapehu)', '5\n(Whakaari)'],
+                       fontsize=8.5)
+    ax.set_xlim(1.6, 5.95)
+    ax.set_xlabel('recorded eruptions at the target volcano', fontsize=9)
+    ax.set_ylabel('AUC change from refining on target data', fontsize=9)
+    style_ax(ax, ygrid=True)
+    ax.legend(loc='lower right', bbox_to_anchor=(0.99, 0.30), frameon=False,
+              fontsize=7.8)
+    ax.set_title('(a) fine-tuning is unreliable below five eruptions',
+                 loc='left', fontsize=10, color=INK)
+
+    # (b) prospective scoreboard (F4)
+    ax = axes[1]
+    df = pd.read_csv(os.path.join(REPO, r'forecasts\phase_g\phase_g_summary.csv'))
+    pmethods = ['full', 'curated', 'ser_us', 'tboost']
+    pmlabels = ['full pool', 'curated pool', 'refined trees (ser_us)',
+                'target-boosted (tboost)']
+    targets = ['FWVZ', 'KRVZ', 'WIZ']
+    tlabels = ['Ruapehu\n3 eruptions', 'Tongariro\n2 eruptions',
+               'Whakaari\n5 eruptions']
+    x = np.arange(len(targets))
+    w = 0.19
+    for j, (m, ml, c) in enumerate(zip(pmethods, pmlabels, mcolors)):
+        vals = [df[(df.target == t) & (df.method == m)].auc.iloc[0]
+                for t in targets]
+        pos = x + (j - 1.5) * w
+        ax.bar(pos, vals, width=w - 0.025, color=c, edgecolor=SURF,
+               linewidth=1.5, label=ml)
+        for xi, v in zip(pos, vals):
+            ax.text(xi, v + 0.012, f'{v:.2f}', ha='center', fontsize=7.3,
+                    color=INK2)
+    for t, xi in [('FWVZ', 0), ('KRVZ', 1)]:
+        v = df[(df.target == t) & (df.method == 'tboost')].auc.iloc[0]
+        ax.text(xi + 1.5 * w, v - 0.05, '*', ha='center', fontsize=12,
+                color=SURF, fontweight='bold')
+    ax.set_xticks(x)
+    ax.set_xticklabels(tlabels, fontsize=8.5)
+    ax.set_ylim(0, 1.02)
+    ax.set_ylabel('pseudo-prospective eruption AUC', fontsize=9)
+    style_ax(ax, ygrid=True)
+    ax.legend(ncol=2, loc='upper left', frameon=False, fontsize=7.8)
+    ax.set_title('(b) prospective test: curation always helps; boosting '
+                 'needs history', loc='left', fontsize=10, color=INK)
+
+    fig.suptitle('When does adapting to the target pay?', x=0.005, ha='left',
+                 fontsize=13, fontweight='bold', y=1.07)
+    fig.text(0.005, 1.0,
+             '(a) leave-one-eruption-out refinement gain vs eruption count; '
+             '(b) all target information restricted to before each eruption, '
+             'scored on unrest-month windows (* = score carried by the '
+             'no-prior-eruption fallback).', fontsize=9, color=INK2)
+    fig.tight_layout()
+    save(fig, 'M3_adaptation_when_it_pays')
+
+
+def m4():
+    """M4 = F10a + F9b + F10b: the operational alert system."""
+    import matplotlib.dates as mdates
+    from datetime import datetime, timedelta
+    te = datetime(2019, 12, 9, 1, 11)
+    YTOP = 0.8
+    Q, LB_D, MW_H, SU_H = 0.995, 180, 24, 24
+
+    files = sorted(glob(os.path.join(REPO, r'forecasts\phase_b_wiz', 'WIZ_*.pkl')))
+    df = pd.concat([pd.read_pickle(f) for f in files])
+    df = df[~df.index.duplicated()].sort_index()
+    con = df['O'].resample('1h').median().dropna()
+    med = con.rolling(MW_H, min_periods=MW_H // 2).median()
+    thr = con.rolling(LB_D * 24, min_periods=240).quantile(Q).shift(1)
+    active = (med > thr) & thr.notna()
+    episodes, onset, run = [], None, 0
+    for t, a in active.items():
+        if a:
+            run += 1
+            if run == SU_H:
+                onset = t - timedelta(hours=SU_H - 1)
+        else:
+            if onset is not None:
+                episodes.append((onset, t))
+                onset = None
+            run = 0
+    if onset is not None:
+        episodes.append((onset, active.index[-1]))
+
+    fig = plt.figure(figsize=(12.8, 8.6))
+    gs = fig.add_gridspec(2, 3, hspace=0.38, wspace=0.3)
+
+    # (a) two-year optimal-rule view
+    ax = fig.add_subplot(gs[0, :])
+    ctx0 = te - timedelta(days=2 * 365.25)
+    eps2 = [(a, b) for a, b in episodes if b >= ctx0]
+    ov = df['O'][(df.index >= ctx0) & (df.index <= te + timedelta(days=4))]
+    ax.plot(ov.index, ov.values, lw=0.3, color=C1, alpha=0.30)
+    m5 = ov.rolling('5D').median()
+    ax.plot(m5.index, m5.values, lw=1.5, color='#104281',
+            label='Ontake-only pool, 5-day median')
+    tt = thr[(thr.index >= ctx0) & (thr.index <= te + timedelta(days=4))]
+    ax.plot(tt.index, tt.values, lw=1.0, ls=':', color=INK2,
+            label=f'optimal threshold (trailing {LB_D}-day q{Q})')
+    for a, b in eps2:
+        ax.axvspan(a, a + timedelta(days=10), color='#eda100', alpha=0.15, lw=0)
+    for a, b in eps2:
+        ax.axvspan(a, b, color='#eda100', alpha=0.45, lw=0)
+    ax.axvline(te, color='#e34948', ls='--', lw=1.5)
+    ax.text(te - timedelta(days=18), YTOP * 0.97, 'eruption',
+            color='#e34948', fontsize=9, va='top', ha='right')
+    pre = [o for o, b in eps2 if o < te and b > te - timedelta(days=10)]
+    if pre:
+        lead = (te - min(pre)).total_seconds() / 86400
+        ax.annotate(f'alert {lead:.1f} days\nbefore eruption',
+                    xy=(min(pre), 0.62), xytext=(te - timedelta(days=300), 0.68),
+                    fontsize=9, color=INK,
+                    arrowprops=dict(arrowstyle='->', color=INK2, lw=1))
+    nfa = len(eps2) - len(pre)
+    from matplotlib.patches import Patch
+    h, _l = ax.get_legend_handles_labels()
+    h += [Patch(facecolor='#eda100', alpha=0.45, label='alert episode'),
+          Patch(facecolor='#eda100', alpha=0.15,
+                label='10-day warning period after trigger')]
+    ax.legend(handles=h, loc='upper left', frameon=False, fontsize=8)
+    ax.set_xlim(ctx0, te + timedelta(days=4))
+    ax.set_ylim(0, YTOP)
+    ax.set_ylabel('consensus')
+    style_ax(ax, ygrid=True)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+    ax.set_title(f'(a) optimised alert rule, 2018–2019: {nfa} false '
+                 'alarms and a nine-day pre-eruption alert', loc='left',
+                 fontsize=10, color=INK)
+
+    # (b) final month
+    ax = fig.add_subplot(gs[1, :2])
+    w0 = te - timedelta(days=30.4)
+    o = df['O'][(df.index >= w0) & (df.index <= te + timedelta(days=4))]
+    res = pd.read_pickle(os.path.join(REPO, r'forecasts\phase_g\WIZ__e4.pkl'))
+    tb = res['tboost']
+    bg = o[o.index < te - timedelta(days=10)]
+    thrb = bg.quantile(0.99)
+    medb = o.rolling('12h').median()
+    above = (medb[medb.index >= te - timedelta(days=10)] > thrb)
+    run, onset = 0, None
+    for t, a in above.items():
+        run = run + 1 if a else 0
+        if run >= 36:
+            onset = t - timedelta(hours=6)
+            break
+    ax.plot(o.index, o.values, lw=0.4, color=C1, alpha=0.35)
+    ax.plot(medb.index, medb.values, lw=1.8, color='#104281',
+            label='Ontake-only pool, 12-h median')
+    ax.plot(tb.index, tb.values, lw=1.0, color='#c98500',
+            label='target-boosted (raw, prospective)')
+    ax.axhline(thrb, color=INK2, lw=1, ls=':')
+    ax.axvline(te, color='#e34948', ls='--', lw=1.5)
+    ax.axvspan(onset, te, color='#eda100', alpha=0.15)
+    ax.annotate(f'sustained alert begins\n'
+                f'{(te-onset).total_seconds()/86400:.1f} days before eruption',
+                xy=(onset, thrb + 0.02),
+                xytext=(onset - timedelta(days=9), 0.68), fontsize=9,
+                color=INK, arrowprops=dict(arrowstyle='->', color=INK2, lw=1))
+    ax.text(te + timedelta(hours=8), YTOP * 0.97, 'eruption\nDec 9, 2019',
+            color='#e34948', fontsize=8.5, va='top')
+    ax.set_ylim(0, YTOP)
+    ax.set_ylabel('consensus')
+    style_ax(ax, ygrid=True)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
+    ax.legend(loc='upper left', frameon=False, fontsize=8)
+    ax.set_title('(b) the final month before the December 2019 eruption',
+                 loc='left', fontsize=10, color=INK)
+
+    # (c) frontier
+    ax = fig.add_subplot(gs[1, 2])
+    sw = pd.read_csv(os.path.join(REPO, r'forecasts\phase_b',
+                                  'alert_rule_sweep.csv'))
+    frac = sw.detected / 5.
+    ax.scatter(sw.false_alarms_per_year, frac, s=16, color=MUT, alpha=0.45,
+               edgecolor='none', label='all 240 rule settings', zorder=2)
+    front = sw.groupby('detected').false_alarms_per_year.min().reset_index()
+    front = front[front.detected > 0].sort_values('detected')
+    fx = list(front.false_alarms_per_year) + [13]
+    fy = list(front.detected / 5.)
+    ax.step(fx, fy + [fy[-1]], where='post', color=C2, lw=2,
+            label='best achievable', zorder=3)
+    ax.scatter(front.false_alarms_per_year, front.detected / 5., color=C2,
+               s=44, zorder=4, edgecolor=SURF, linewidth=0.8)
+    ax.scatter([10.8], [0.4], color=C1, s=52, zorder=5, edgecolor=SURF,
+               linewidth=0.8, label='original heuristic')
+    ax.set_xlim(0, 13)
+    ax.set_ylim(-0.04, 0.72)
+    ax.set_yticks([0, 0.2, 0.4, 0.6])
+    ax.set_yticklabels(['0/5', '1/5', '2/5', '3/5'])
+    ax.set_xlabel('false alarms per year', fontsize=9)
+    ax.set_ylabel('eruptions detected', fontsize=9)
+    style_ax(ax, ygrid=True)
+    ax.legend(loc='lower right', frameon=False, fontsize=7.2)
+    ax.set_title('(c) detection vs false-alarm\nfrontier', loc='left',
+                 fontsize=10, color=INK)
+
+    fig.suptitle('An operational alert system for Whakaari, built from '
+                 'foreign data', x=0.005, ha='left', fontsize=13,
+                 fontweight='bold', y=1.03)
+    fig.text(0.005, 0.99,
+             'Rule: alert when the 12/24-h consensus median exceeds a '
+             'trailing-background quantile for a sustained period (strictly '
+             'causal). Rule parameters tuned in-sample (see text); the '
+             'Dec-2019 lead is robust across 134/240 settings.',
+             fontsize=8.6, color=INK2, va='top')
+    fig.tight_layout(rect=[0, 0, 1, 0.975])
+    save(fig, 'M4_operational_alerts')
+
+
 if __name__ == '__main__':
     fig1()
     fig2()
@@ -865,4 +1196,7 @@ if __name__ == '__main__':
     fig8()
     fig9()
     fig10()
+    m1()
+    m3()
+    m4()
     print('figure pack complete ->', FIG)
