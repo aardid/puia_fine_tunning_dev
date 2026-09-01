@@ -41,7 +41,7 @@ plt.rcParams.update({
     'text.color': INK, 'axes.labelcolor': INK2,
     'xtick.color': MUT, 'ytick.color': MUT,
     'axes.edgecolor': BASE, 'axes.linewidth': 0.8,
-    'axes.grid': False, 'font.size': 9.5,
+    'axes.grid': False, 'font.size': 13,
 })
 
 
@@ -106,14 +106,14 @@ def fig1():
         ax.hlines(range(len(df)), 0.4, df.auc, color=GRID, lw=0.7, zorder=1)
         ax.scatter(df.auc, range(len(df)), c=colors, s=42, zorder=3)
         ax.set_yticks(range(len(df)))
-        ax.set_yticklabels(df.label, fontsize=8)
+        ax.set_yticklabels(df.label, fontsize=11)
         # direct-label the best pool
         best = df.iloc[-1]
         ax.annotate(f'{best.auc:.3f}', (best.auc, len(df) - 1),
                     xytext=(4, 0), textcoords='offset points',
-                    va='center', fontsize=8.5, color=INK)
+                    va='center', fontsize=11.5, color=INK)
         ax.set_xlim(0.4, 1.02)
-        ax.set_title(f'target: {names[target]}', loc='left', fontsize=10,
+        ax.set_title(f'target: {names[target]}', loc='left', fontsize=13.5,
                      color=INK)
         style_ax(ax, xgrid=True)
         ax.set_xlabel('eruption AUC (target fully out-of-sample)')
@@ -122,13 +122,13 @@ def fig1():
         Line2D([], [], marker='o', ls='', color=C1, label='pool without Whakaari'),
         Line2D([], [], marker='o', ls='', color=C2, label='pool contains Whakaari')],
         loc='upper right', bbox_to_anchor=(0.995, 1.10), frameon=False,
-        fontsize=9, ncol=2)
+        fontsize=12, ncol=2)
     fig.suptitle('Every Whakaari-free pool beats every Whakaari-containing pool',
-                 x=0.005, ha='left', fontsize=12.5, fontweight='bold', y=1.10)
+                 x=0.005, ha='left', fontsize=17, fontweight='bold', y=1.10)
     fig.text(0.005, 1.03,
              'AUC of all 15 source-pool subsets, leave-target-volcano-out '
              '(W=Whakaari, F=Ruapehu, K=Tongariro, O=Ontake, S=St Helens)',
-             fontsize=9, color=INK2)
+             fontsize=12, color=INK2)
     fig.tight_layout()
     save(fig, 'F1_pool_landscape')
 
@@ -156,16 +156,16 @@ def fig2():
                label='curated pool K+O+S (no Whakaari)')
     ax.set_yticks(y)
     ax.set_yticklabels([f'{names.get(t, t)}  (n={nev[t]})' for t in piv.index],
-                       fontsize=9)
+                       fontsize=12)
     style_ax(ax, xgrid=True)
     ax.set_xlabel('eruption AUC — 31 eruptions never seen by any model')
     ax.set_xlim(0.1, 1.0)
-    ax.legend(loc='upper left', frameon=False, fontsize=8.5)
+    ax.legend(loc='upper left', frameon=False, fontsize=11.5)
     ax.set_title('The curated pool wins on 8 of 8 out-of-pool volcanoes',
-                 loc='left', fontsize=12.5, fontweight='bold', pad=14)
+                 loc='left', fontsize=17, fontweight='bold', pad=14)
     ax.text(0, 1.015, 'External validation: models applied unchanged to '
             'volcanoes outside the training pool', transform=ax.transAxes,
-            fontsize=9, color=INK2)
+            fontsize=12, color=INK2)
     fig.tight_layout()
     save(fig, 'F2_external_validation')
 
@@ -235,19 +235,19 @@ def fig3():
         for yi, (l, v) in enumerate(zip(left, vals)):
             if v > 0.07:
                 ax.text(l + v / 2, y[yi], f'{v:.0%}', ha='center',
-                        va='center', fontsize=8, color=SURF
+                        va='center', fontsize=11, color=SURF
                         if c in (C1, C2) else INK)
         left += vals
     ax.set_yticks(y)
-    ax.set_yticklabels(order, fontsize=8.5)
+    ax.set_yticklabels(order, fontsize=11.5)
     ax.set_xlim(0, 1)
     ax.set_xticks([0, 0.25, 0.5, 0.75, 1.0])
     ax.set_xticklabels(['0%', '25%', '50%', '75%', '100%'])
     style_ax(ax)
     ax.legend(ncol=4, loc='upper center', bbox_to_anchor=(0.5, -0.12),
-              frameon=False, fontsize=8.5)
+              frameon=False, fontsize=11.5)
     ax.set_title('(a) seismic stream of selected features', loc='left',
-                 fontsize=10, color=INK)
+                 fontsize=13.5, color=INK)
 
     # (b) feature families, grouped
     ax = axes[1]
@@ -260,25 +260,25 @@ def fig3():
         b = ax.bar(x + (j - 0.5) * w, vals, width=w - 0.04, color=c,
                    edgecolor=SURF, linewidth=1.5, label=fam)
         for xi, v in zip(x + (j - 0.5) * w, vals):
-            ax.text(xi, v + 0.015, f'{v:.0%}', ha='center', fontsize=8,
+            ax.text(xi, v + 0.015, f'{v:.0%}', ha='center', fontsize=11,
                     color=INK2)
     ax.set_xticks(x)
-    ax.set_xticklabels([k.replace('\n', ' ') for k in order], fontsize=8)
+    ax.set_xticklabels([k.replace('\n', ' ') for k in order], fontsize=11)
     ax.set_ylim(0, 1)
     ax.set_yticks([0, 0.25, 0.5, 0.75, 1.0])
     ax.set_yticklabels(['0%', '25%', '50%', '75%', '100%'])
     style_ax(ax, ygrid=True)
-    ax.legend(loc='upper right', frameon=False, fontsize=8.5)
+    ax.legend(loc='upper right', frameon=False, fontsize=11.5)
     ax.set_title('(b) feature family (share of 6000 selected features)',
-                 loc='left', fontsize=10, color=INK)
+                 loc='left', fontsize=13.5, color=INK)
 
     fig.suptitle('Why Whakaari poisons pools: loudness does not transfer, '
-                 'waveform shape does', x=0.005, ha='left', fontsize=12.5,
+                 'waveform shape does', x=0.005, ha='left', fontsize=17,
                  fontweight='bold', y=1.04)
     fig.text(0.005, 0.965, 'With Whakaari in the pool, feature selection locks '
              'onto raw-amplitude statistics; without it, selection shifts to '
              'temporal-structure features that transfer between volcanoes',
-             fontsize=9, color=INK2)
+             fontsize=12, color=INK2)
     fig.tight_layout(rect=[0, 0, 1, 0.94])
     save(fig, 'F3_feature_mechanism')
 
@@ -306,27 +306,27 @@ def fig4():
         ax.bar(pos, vals, width=w - 0.025, color=c, edgecolor=SURF,
                linewidth=1.5, label=ml)
         for xi, v in zip(pos, vals):
-            ax.text(xi, v + 0.012, f'{v:.2f}', ha='center', fontsize=8,
+            ax.text(xi, v + 0.012, f'{v:.2f}', ha='center', fontsize=11,
                     color=INK2)
     # annotate tboost fallback-driven scores
     for t, xi in [('FWVZ', 0), ('KRVZ', 1)]:
         v = df[(df.target == t) & (df.method == 'tboost')].auc.iloc[0]
-        ax.text(xi + 1.5 * w, v - 0.045, '*', ha='center', fontsize=13,
+        ax.text(xi + 1.5 * w, v - 0.045, '*', ha='center', fontsize=17.5,
                 color=SURF, fontweight='bold')
     ax.set_xticks(x)
-    ax.set_xticklabels(tlabels, fontsize=9.5)
+    ax.set_xticklabels(tlabels, fontsize=13)
     ax.set_ylim(0, 1.05)
     ax.set_ylabel('pseudo-prospective eruption AUC')
     style_ax(ax, ygrid=True)
-    ax.legend(ncol=2, loc='upper left', frameon=False, fontsize=8.5)
+    ax.legend(ncol=2, loc='upper left', frameon=False, fontsize=11.5)
     fig.suptitle('Prospective test: curation always helps; local boosting '
-                 'needs eruption history', x=0.005, ha='left', fontsize=12.5,
+                 'needs eruption history', x=0.005, ha='left', fontsize=17,
                  fontweight='bold', y=1.06)
     fig.text(0.005, 0.985,
              'All target information restricted to before each eruption; '
              'scored on unrest-month windows.\n* score carried by the '
              'no-prior-eruption fallback — tboost itself detected nothing '
-             'prospectively at these targets', fontsize=8.4, color=INK2,
+             'prospectively at these targets', fontsize=11.5, color=INK2,
              va='top')
     fig.tight_layout(rect=[0, 0, 1, 0.90])
     save(fig, 'F4_prospective_scoreboard')
@@ -355,8 +355,8 @@ def fig5():
 
     fig, ax = plt.subplots(figsize=(7.0, 4.6))
     ax.axhline(0, color=BASE, lw=1)
-    ax.text(5.55, 0.006, 'helps', fontsize=8, color=INK2, va='bottom')
-    ax.text(5.55, -0.012, 'harms', fontsize=8, color=INK2, va='top')
+    ax.text(5.55, 0.006, 'helps', fontsize=11, color=INK2, va='bottom')
+    ax.text(5.55, -0.012, 'harms', fontsize=11, color=INK2, va='top')
     for m, ml, c in zip(methods, mlabels, mcolors):
         xs, ys = [], []
         for t in ['KRVZ', 'FWVZ', 'WIZ']:
@@ -368,19 +368,19 @@ def fig5():
                 markeredgecolor=SURF, markeredgewidth=1.2)
     ax.set_xticks([2, 3, 5])
     ax.set_xticklabels(['2\n(Tongariro)', '3\n(Ruapehu)', '5\n(Whakaari)'],
-                       fontsize=9)
+                       fontsize=12)
     ax.set_xlim(1.6, 5.95)
     ax.set_xlabel('recorded eruptions at the target volcano')
     ax.set_ylabel('AUC change from refining on target data')
     style_ax(ax, ygrid=True)
     ax.legend(loc='lower right', bbox_to_anchor=(0.99, 0.30), frameon=False,
-              fontsize=8.5)
+              fontsize=11.5)
     ax.set_title('Fine-tuning is unreliable below five eruptions — and '
-                 'consistently helps at five', loc='left', fontsize=12.5,
+                 'consistently helps at five', loc='left', fontsize=17,
                  fontweight='bold', pad=14)
     ax.text(0, 1.015, 'Change in eruption AUC when the foreign-trained '
             'ensemble is refined on the target volcano’s own data '
-            '(leave-one-eruption-out)', transform=ax.transAxes, fontsize=9,
+            '(leave-one-eruption-out)', transform=ax.transAxes, fontsize=12,
             color=INK2)
     fig.tight_layout()
     save(fig, 'F5_decision_ladder')
@@ -419,7 +419,7 @@ def fig6():
                 ax.plot(e, r.bg_p95, marker='_', ms=11, color=INK2, zorder=3)
                 ax.scatter(e, r.pre_q95, color=MUT, s=48, zorder=4)
                 ax.annotate('fallback\n(no prior\neruptions)', (e, 0.03),
-                            ha='center', fontsize=7, color=MUT)
+                            ha='center', fontsize=9.5, color=MUT)
                 continue
             for m, c, o in zip(methods, mcolors, off):
                 r = rows.loc[m]
@@ -430,7 +430,7 @@ def fig6():
                 ax.scatter(x, r.pre_q95, color=c, s=44, zorder=4,
                            edgecolor=SURF, linewidth=0.8)
                 if m == 'tboost' and r.pre_q95 == 0:
-                    ax.annotate('silent', (x, 0.015), ha='center', fontsize=6.5,
+                    ax.annotate('silent', (x, 0.015), ha='center', fontsize=9,
                                 color=INK2, rotation=90, va='bottom')
         # x labels: date + curated pick
         labels = []
@@ -444,10 +444,10 @@ def fig6():
                 lab += f'\npick: {pick}'
             labels.append(lab)
         ax.set_xticks(erups)
-        ax.set_xticklabels(labels, fontsize=7.5)
+        ax.set_xticklabels(labels, fontsize=10)
         ax.set_xlim(-0.6, max(erups) + 0.6)
         ax.set_ylim(0, 1.05)
-        ax.set_title(tnames[target], loc='left', fontsize=10, color=INK)
+        ax.set_title(tnames[target], loc='left', fontsize=13.5, color=INK)
         style_ax(ax, ygrid=True)
     axes[0].set_ylabel('consensus (q95)')
 
@@ -458,16 +458,16 @@ def fig6():
                 Line2D([], [], marker='_', ls='', color=INK2, ms=10,
                        label='window background q95')]
     fig.legend(handles=handles, loc='upper right', bbox_to_anchor=(0.995, 1.13),
-               frameon=False, fontsize=8, ncol=3)
+               frameon=False, fontsize=11, ncol=3)
     fig.suptitle('Replaying history: every eruption forecast with only '
-                 'prior information', x=0.005, ha='left', fontsize=12.5,
+                 'prior information', x=0.005, ha='left', fontsize=17,
                  fontweight='bold', y=1.13)
     fig.text(0.005, 1.045,
              'Dot = pre-eruption consensus (q95, 2-day window); tick = that '
              'unrest month’s background q95. A dot above its tick means the '
              'precursor stood out\nfrom its own crisis month. "pick" = the pool '
              'the prospective selection chose using only earlier eruptions.',
-             fontsize=8.6, color=INK2, va='top')
+             fontsize=11.5, color=INK2, va='top')
     fig.tight_layout()
     save(fig, 'F6_prospective_replay')
 
@@ -507,17 +507,17 @@ def fig7():
     first = tb[(tb >= 0.8) & (tb.index < te)].index[0]
     ax.annotate('first alert\n3.4 days before eruption',
                 xy=(first, 0.82), xytext=(first - timedelta(days=12), 0.86),
-                fontsize=9, color=INK,
+                fontsize=12, color=INK,
                 arrowprops=dict(arrowstyle='->', color=INK2, lw=1))
     ax.text(te + timedelta(hours=8), 0.98, 'eruption\nDec 9, 2019',
-            color='#e34948', fontsize=9, va='top')
+            color='#e34948', fontsize=12, va='top')
     ax.set_ylim(0, 1.05)
     ax.set_ylabel('consensus')
     ax.set_title('(a) Whakaari, November–December 2019 — trained only on '
-                 'data before this window', loc='left', fontsize=10.5,
+                 'data before this window', loc='left', fontsize=14,
                  color=INK)
     style_ax(ax, ygrid=True)
-    ax.legend(loc='upper left', frameon=False, fontsize=8.5)
+    ax.legend(loc='upper left', frameon=False, fontsize=11.5)
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
 
     # --- (b) Ruapehu, July 2009 ---
@@ -539,22 +539,22 @@ def fig7():
     ax.axvline(te, color='#e34948', ls='--', lw=1.4)
     ax.axvspan(te - timedelta(days=2), te, color='#eda100', alpha=0.18)
     ax.text(te + timedelta(hours=8), 0.98, 'eruption\nJul 13, 2009',
-            color='#e34948', fontsize=9, va='top')
+            color='#e34948', fontsize=12, va='top')
     ax.set_ylim(0, 1.05)
     ax.set_ylabel('consensus')
     ax.set_title('(b) Ruapehu, June–July 2009 — pool selected and trees '
                  'refined using only the 2006–2007 eruptions', loc='left',
-                 fontsize=10.5, color=INK)
+                 fontsize=14, color=INK)
     style_ax(ax, ygrid=True)
-    ax.legend(loc='upper left', frameon=False, fontsize=8.5)
+    ax.legend(loc='upper left', frameon=False, fontsize=11.5)
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
 
     fig.suptitle('What the duty officer would have seen — forecasts using '
-                 'only prior information', x=0.005, ha='left', fontsize=12.5,
+                 'only prior information', x=0.005, ha='left', fontsize=17,
                  fontweight='bold', y=1.005)
     fig.text(0.005, 0.965, 'Thin traces: raw 10-minute consensus; bold: '
              '12-hour rolling median; orange band: the 2-day alert window '
-             'before each eruption.', fontsize=9, color=INK2)
+             'before each eruption.', fontsize=12, color=INK2)
     fig.tight_layout(rect=[0, 0, 1, 0.95])
     save(fig, 'F7_operational_view')
 
@@ -592,22 +592,22 @@ def fig8():
             ax.annotate(f'{nice}\nlead {r.mean_lead_days:.0f}d',
                         (r.false_alarms_per_year, r.detected / r.n_eruptions),
                         xytext=(dx, 8), textcoords='offset points',
-                        ha='center', fontsize=7.5, color=INK2)
+                        ha='center', fontsize=10, color=INK2)
         ax.set_xlim(0, 13)
         ax.set_ylim(-0.05, 0.62)
         ax.set_yticks([0, 0.2, 0.4, 0.6])
         ax.set_yticklabels(['0%', '20%', '40%', '60%'])
-        ax.set_title(tnames[t], loc='left', fontsize=10, color=INK)
+        ax.set_title(tnames[t], loc='left', fontsize=13.5, color=INK)
         ax.set_xlabel('false alarms per year')
         style_ax(ax, ygrid=True)
     axes[0].set_ylabel('eruptions detected (sustained alert in final 10 days)')
     fig.suptitle('A sustained-alert rule only works at Whakaari — short '
                  'precursors elsewhere need the 2-day window metric',
-                 x=0.005, ha='left', fontsize=12.5, fontweight='bold', y=1.09)
+                 x=0.005, ha='left', fontsize=17, fontweight='bold', y=1.09)
     fig.text(0.005, 1.015,
              'Causal rule: alert when the 12-h median exceeds the trailing '
              '30-day q99 for 6+ hours. Blue = Whakaari-free pool, orange = '
-             'contains Whakaari.', fontsize=9, color=INK2)
+             'contains Whakaari.', fontsize=12, color=INK2)
     fig.tight_layout()
     save(fig, 'F8_alert_rule_tradeoff')
 
@@ -668,17 +668,17 @@ def fig9():
         ax.axvspan(a, b, color='#eda100', alpha=0.35)
     ax.axvline(te, color='#e34948', ls='--', lw=1.5)
     ax.text(te - timedelta(days=18), YTOP * 0.97, 'eruption', color='#e34948',
-            fontsize=9, va='top', ha='right')
+            fontsize=12, va='top', ha='right')
     ax.set_xlim(ctx0, te + timedelta(days=4))
     ax.set_ylim(0, YTOP)
     ax.set_ylabel('consensus')
     style_ax(ax, ygrid=True)
-    ax.legend(loc='upper left', frameon=False, fontsize=8.5)
+    ax.legend(loc='upper left', frameon=False, fontsize=11.5)
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
     ax.set_title(f'(a) the two years before: {len(episodes)} alert episodes '
                  f'(orange), {n_fa} of them false alarms '
                  f'(≈{n_fa/2:.0f} per year) — the last one precedes the '
-                 'eruption', loc='left', fontsize=10.5, color=INK)
+                 'eruption', loc='left', fontsize=14, color=INK)
 
     # --- (b) final-month zoom (fixed Nov-background threshold, as before) ---
     ax = axes[1]
@@ -708,24 +708,24 @@ def fig9():
     ax.annotate(f'sustained alert begins\n'
                 f'{(te-onset).total_seconds()/86400:.1f} days before eruption',
                 xy=(onset, thr + 0.02),
-                xytext=(onset - timedelta(days=8), 0.70), fontsize=9.5,
+                xytext=(onset - timedelta(days=8), 0.70), fontsize=13,
                 color=INK, arrowprops=dict(arrowstyle='->', color=INK2, lw=1))
     ax.text(te + timedelta(hours=8), YTOP * 0.97, 'eruption\nDec 9, 2019',
-            color='#e34948', fontsize=9, va='top')
+            color='#e34948', fontsize=12, va='top')
     ax.set_ylim(0, YTOP)
     ax.set_ylabel('consensus')
     style_ax(ax, ygrid=True)
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
-    ax.legend(loc='upper left', frameon=False, fontsize=9)
-    ax.set_title('(b) the final month', loc='left', fontsize=10.5, color=INK)
+    ax.legend(loc='upper left', frameon=False, fontsize=12)
+    ax.set_title('(b) the final month', loc='left', fontsize=14, color=INK)
 
     fig.suptitle('Whakaari, December 2019: a nine-day sustained alert — and '
                  'what the same rule costs in false alarms', x=0.005,
-                 ha='left', fontsize=12.5, fontweight='bold', y=1.005)
+                 ha='left', fontsize=17, fontweight='bold', y=1.005)
     fig.text(0.005, 0.968,
              'Ontake-only pool consensus. Pool highlighted retrospectively; '
              'the target-boosted trace in (b) is fully prospective.',
-             fontsize=8.6, color=INK2, va='top')
+             fontsize=11.5, color=INK2, va='top')
     fig.tight_layout(rect=[0, 0, 1, 0.955])
     save(fig, 'F9_wiz2019_case_study')
 
@@ -784,13 +784,13 @@ def fig10():
         ax.axvspan(a, b, color='#eda100', alpha=0.45, lw=0)
     ax.axvline(te, color='#e34948', ls='--', lw=1.5)
     ax.text(te - timedelta(days=18), YTOP * 0.97, 'eruption',
-            color='#e34948', fontsize=9, va='top', ha='right')
+            color='#e34948', fontsize=12, va='top', ha='right')
     pre = [o for o, b in eps2 if o < te and b > te - timedelta(days=10)]
     if pre:
         lead = (te - min(pre)).total_seconds() / 86400
         ax.annotate(f'alert {lead:.1f} days\nbefore eruption',
                     xy=(min(pre), 0.62), xytext=(te - timedelta(days=300), 0.68),
-                    fontsize=9, color=INK,
+                    fontsize=12, color=INK,
                     arrowprops=dict(arrowstyle='->', color=INK2, lw=1))
     nfa = len(eps2) - len(pre)
     ax.set_xlim(ctx0, te + timedelta(days=4))
@@ -802,11 +802,11 @@ def fig10():
     h += [Patch(facecolor='#eda100', alpha=0.45, label='alert episode'),
           Patch(facecolor='#eda100', alpha=0.15,
                 label='10-day warning period after trigger')]
-    ax.legend(handles=h, loc='upper left', frameon=False, fontsize=8.5)
+    ax.legend(handles=h, loc='upper left', frameon=False, fontsize=11.5)
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
     ax.set_title(f'(a) the optimal rule over the same two years: '
                  f'{nfa} false alarm{"s" if nfa != 1 else ""}, and the '
-                 'pre-eruption alert survives', loc='left', fontsize=10.5,
+                 'pre-eruption alert survives', loc='left', fontsize=14,
                  color=INK)
 
     # --- (b) operating curve from the sweep ---
@@ -829,7 +829,7 @@ def fig10():
     ax.scatter([10.8], [0.4], color=C1, s=60, zorder=5, edgecolor=SURF,
                linewidth=0.8, label='original heuristic')
     ax.annotate('optimum for 2019\n(1.1 FA/yr, 8.8-d lead)',
-                xy=(1.1, 0.2), xytext=(2.6, 0.06), fontsize=8, color=INK2,
+                xy=(1.1, 0.2), xytext=(2.6, 0.06), fontsize=11, color=INK2,
                 arrowprops=dict(arrowstyle='->', color=INK2, lw=0.9))
     ax.set_xlim(0, 13)
     ax.set_ylim(-0.04, 0.72)
@@ -838,18 +838,18 @@ def fig10():
     ax.set_xlabel('false alarms per year')
     ax.set_ylabel('eruptions detected')
     style_ax(ax, ygrid=True)
-    ax.legend(loc='lower right', frameon=False, fontsize=8)
+    ax.legend(loc='lower right', frameon=False, fontsize=11)
     ax.set_title('(b) detection vs false-alarm frontier', loc='left',
-                 fontsize=10.5, color=INK)
+                 fontsize=14, color=INK)
 
     fig.suptitle('Tuning the alert rule: an order of magnitude fewer false '
                  'alarms at the same nine-day lead', x=0.005, ha='left',
-                 fontsize=12.5, fontweight='bold', y=1.07)
+                 fontsize=17, fontweight='bold', y=1.07)
     fig.text(0.005, 0.995,
              'Rule parameters swept in-sample over 2010-2020 (quantile, '
              'lookback, median window, sustain); the Dec-2019 lead is '
              'robust across 134/240 settings (8.6-9.5 days).',
-             fontsize=8.6, color=INK2, va='top')
+             fontsize=11.5, color=INK2, va='top')
     fig.tight_layout(rect=[0, 0, 1, 0.97])
     save(fig, 'F10_optimal_alert_rule')
 
@@ -874,8 +874,10 @@ def m1():
                           wspace=0.28)
     names = {'FWVZ': 'Ruapehu (FWVZ)', 'KRVZ': 'Tongariro (KRVZ)',
              'WIZ': 'Whakaari (WIZ)'}
+    top_axes = []
     for i, (target, df) in enumerate(panels):
         ax = fig.add_subplot(gs[0, i])
+        top_axes.append(ax)
         df = df.copy()
         df['label'] = df.pool.map(pool_label)
         df['wiz'] = df.pool.map(lambda p: 'WIZ' in p)
@@ -884,16 +886,16 @@ def m1():
         ax.hlines(range(len(df)), 0.4, df.auc, color=GRID, lw=0.7, zorder=1)
         ax.scatter(df.auc, range(len(df)), c=colors, s=36, zorder=3)
         ax.set_yticks(range(len(df)))
-        ax.set_yticklabels(df.label, fontsize=7.5)
+        ax.set_yticklabels(df.label, fontsize=10)
         best = df.iloc[-1]
         ax.annotate(f'{best.auc:.3f}', (best.auc, len(df) - 1),
                     xytext=(4, 0), textcoords='offset points', va='center',
-                    fontsize=8, color=INK)
+                    fontsize=11, color=INK)
         ax.set_xlim(0.4, 1.02)
         ax.set_title(f'({chr(97+i)}) target: {names[target]}', loc='left',
-                     fontsize=10, color=INK)
+                     fontsize=13.5, color=INK)
         style_ax(ax, xgrid=True)
-        ax.set_xlabel('eruption AUC (target out-of-sample)', fontsize=8.5)
+        ax.set_xlabel('eruption AUC (target out-of-sample)', fontsize=11.5)
 
     # (d) external validation
     ax = fig.add_subplot(gs[1, :])
@@ -914,29 +916,28 @@ def m1():
                label='curated pool K+O+S (no Whakaari)')
     ax.set_yticks(y)
     ax.set_yticklabels([f'{names2.get(t, t)}  (n={nev[t]})' for t in piv.index],
-                       fontsize=8.5)
+                       fontsize=11.5)
     style_ax(ax, xgrid=True)
     ax.set_xlabel('eruption AUC — 31 eruptions never seen by any model',
-                  fontsize=9)
+                  fontsize=12)
     ax.set_xlim(0.1, 1.0)
-    ax.legend(loc='upper left', frameon=False, fontsize=8.5)
+    ax.legend(loc='upper left', frameon=False, fontsize=11.5)
     ax.set_title('(d) external validation: the curated pool wins on 8 of 8 '
-                 'out-of-pool volcanoes', loc='left', fontsize=10, color=INK)
+                 'out-of-pool volcanoes', loc='left', fontsize=13.5, color=INK)
 
     from matplotlib.lines import Line2D
-    fig.legend(handles=[
+    top_axes[0].legend(handles=[
         Line2D([], [], marker='o', ls='', color=C1, label='pool without Whakaari'),
         Line2D([], [], marker='o', ls='', color=C2, label='pool contains Whakaari')],
-        loc='upper right', bbox_to_anchor=(0.995, 1.045), frameon=False,
-        fontsize=9, ncol=2)
+        loc='lower left', frameon=False, fontsize=10.5)
     fig.suptitle('Source-pool curation: every Whakaari-free pool beats every '
-                 'Whakaari-containing pool', x=0.005, ha='left', fontsize=13,
+                 'Whakaari-containing pool', x=0.005, ha='left', fontsize=17.5,
                  fontweight='bold', y=1.045)
     fig.text(0.005, 1.0,
              '(a–c) all 15 source-pool subsets per target, leave-target-'
              'volcano-out (W=Whakaari, F=Ruapehu, K=Tongariro, O=Ontake, '
              'S=St Helens); (d) trained ensembles applied unchanged to '
-             'volcanoes outside the pool.', fontsize=9, color=INK2)
+             'volcanoes outside the pool.', fontsize=12, color=INK2)
     fig.tight_layout()
     save(fig, 'M1_curation_and_generalization')
 
@@ -964,8 +965,8 @@ def m3():
                'SER (per-tree undersample)']
     mcolors = [C1, C2, C3, C4]
     ax.axhline(0, color=BASE, lw=1)
-    ax.text(5.55, 0.006, 'helps', fontsize=8, color=INK2, va='bottom')
-    ax.text(5.55, -0.012, 'harms', fontsize=8, color=INK2, va='top')
+    ax.text(5.55, 0.006, 'helps', fontsize=11, color=INK2, va='bottom')
+    ax.text(5.55, -0.012, 'harms', fontsize=11, color=INK2, va='top')
     for m, ml, c in zip(methods, mlabels, mcolors):
         xs, ys = [], []
         for t in ['KRVZ', 'FWVZ', 'WIZ']:
@@ -977,15 +978,15 @@ def m3():
                 markeredgecolor=SURF, markeredgewidth=1.2)
     ax.set_xticks([2, 3, 5])
     ax.set_xticklabels(['2\n(Tongariro)', '3\n(Ruapehu)', '5\n(Whakaari)'],
-                       fontsize=8.5)
+                       fontsize=11.5)
     ax.set_xlim(1.6, 5.95)
-    ax.set_xlabel('recorded eruptions at the target volcano', fontsize=9)
-    ax.set_ylabel('AUC change from refining on target data', fontsize=9)
+    ax.set_xlabel('recorded eruptions at the target volcano', fontsize=12)
+    ax.set_ylabel('AUC change from refining on target data', fontsize=12)
     style_ax(ax, ygrid=True)
     ax.legend(loc='lower right', bbox_to_anchor=(0.99, 0.30), frameon=False,
-              fontsize=7.8)
+              fontsize=10.5)
     ax.set_title('(a) fine-tuning is unreliable below five eruptions',
-                 loc='left', fontsize=10, color=INK)
+                 loc='left', fontsize=13.5, color=INK)
 
     # (b) prospective scoreboard (F4)
     ax = axes[1]
@@ -1005,28 +1006,28 @@ def m3():
         ax.bar(pos, vals, width=w - 0.025, color=c, edgecolor=SURF,
                linewidth=1.5, label=ml)
         for xi, v in zip(pos, vals):
-            ax.text(xi, v + 0.012, f'{v:.2f}', ha='center', fontsize=7.3,
+            ax.text(xi, v + 0.012, f'{v:.2f}', ha='center', fontsize=10,
                     color=INK2)
     for t, xi in [('FWVZ', 0), ('KRVZ', 1)]:
         v = df[(df.target == t) & (df.method == 'tboost')].auc.iloc[0]
-        ax.text(xi + 1.5 * w, v - 0.05, '*', ha='center', fontsize=12,
+        ax.text(xi + 1.5 * w, v - 0.05, '*', ha='center', fontsize=16,
                 color=SURF, fontweight='bold')
     ax.set_xticks(x)
-    ax.set_xticklabels(tlabels, fontsize=8.5)
+    ax.set_xticklabels(tlabels, fontsize=11.5)
     ax.set_ylim(0, 1.02)
-    ax.set_ylabel('pseudo-prospective eruption AUC', fontsize=9)
+    ax.set_ylabel('pseudo-prospective eruption AUC', fontsize=12)
     style_ax(ax, ygrid=True)
-    ax.legend(ncol=2, loc='upper left', frameon=False, fontsize=7.8)
+    ax.legend(ncol=2, loc='upper left', frameon=False, fontsize=10.5)
     ax.set_title('(b) prospective test: curation always helps; boosting '
-                 'needs history', loc='left', fontsize=10, color=INK)
+                 'needs history', loc='left', fontsize=13.5, color=INK)
 
     fig.suptitle('When does adapting to the target pay?', x=0.005, ha='left',
-                 fontsize=13, fontweight='bold', y=1.07)
+                 fontsize=17.5, fontweight='bold', y=1.07)
     fig.text(0.005, 1.0,
              '(a) leave-one-eruption-out refinement gain vs eruption count; '
              '(b) all target information restricted to before each eruption, '
              'scored on unrest-month windows (* = score carried by the '
-             'no-prior-eruption fallback).', fontsize=9, color=INK2)
+             'no-prior-eruption fallback).', fontsize=12, color=INK2)
     fig.tight_layout()
     save(fig, 'M3_adaptation_when_it_pays')
 
@@ -1081,13 +1082,13 @@ def m4():
         ax.axvspan(a, b, color='#eda100', alpha=0.45, lw=0)
     ax.axvline(te, color='#e34948', ls='--', lw=1.5)
     ax.text(te - timedelta(days=18), YTOP * 0.97, 'eruption',
-            color='#e34948', fontsize=9, va='top', ha='right')
+            color='#e34948', fontsize=12, va='top', ha='right')
     pre = [o for o, b in eps2 if o < te and b > te - timedelta(days=10)]
     if pre:
         lead = (te - min(pre)).total_seconds() / 86400
         ax.annotate(f'alert {lead:.1f} days\nbefore eruption',
                     xy=(min(pre), 0.62), xytext=(te - timedelta(days=300), 0.68),
-                    fontsize=9, color=INK,
+                    fontsize=12, color=INK,
                     arrowprops=dict(arrowstyle='->', color=INK2, lw=1))
     nfa = len(eps2) - len(pre)
     from matplotlib.patches import Patch
@@ -1095,7 +1096,7 @@ def m4():
     h += [Patch(facecolor='#eda100', alpha=0.45, label='alert episode'),
           Patch(facecolor='#eda100', alpha=0.15,
                 label='10-day warning period after trigger')]
-    ax.legend(handles=h, loc='upper left', frameon=False, fontsize=8)
+    ax.legend(handles=h, loc='upper left', frameon=False, fontsize=11)
     ax.set_xlim(ctx0, te + timedelta(days=4))
     ax.set_ylim(0, YTOP)
     ax.set_ylabel('consensus')
@@ -1103,7 +1104,7 @@ def m4():
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
     ax.set_title(f'(a) optimised alert rule, 2018–2019: {nfa} false '
                  'alarms and a nine-day pre-eruption alert', loc='left',
-                 fontsize=10, color=INK)
+                 fontsize=13.5, color=INK)
 
     # (b) final month
     ax = fig.add_subplot(gs[1, :2])
@@ -1132,17 +1133,17 @@ def m4():
     ax.annotate(f'sustained alert begins\n'
                 f'{(te-onset).total_seconds()/86400:.1f} days before eruption',
                 xy=(onset, thrb + 0.02),
-                xytext=(onset - timedelta(days=9), 0.68), fontsize=9,
+                xytext=(onset - timedelta(days=9), 0.68), fontsize=12,
                 color=INK, arrowprops=dict(arrowstyle='->', color=INK2, lw=1))
     ax.text(te + timedelta(hours=8), YTOP * 0.97, 'eruption\nDec 9, 2019',
-            color='#e34948', fontsize=8.5, va='top')
+            color='#e34948', fontsize=11.5, va='top')
     ax.set_ylim(0, YTOP)
     ax.set_ylabel('consensus')
     style_ax(ax, ygrid=True)
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
-    ax.legend(loc='upper left', frameon=False, fontsize=8)
+    ax.legend(loc='upper left', frameon=False, fontsize=11)
     ax.set_title('(b) the final month before the December 2019 eruption',
-                 loc='left', fontsize=10, color=INK)
+                 loc='left', fontsize=13.5, color=INK)
 
     # (c) frontier
     ax = fig.add_subplot(gs[1, 2])
@@ -1165,22 +1166,22 @@ def m4():
     ax.set_ylim(-0.04, 0.72)
     ax.set_yticks([0, 0.2, 0.4, 0.6])
     ax.set_yticklabels(['0/5', '1/5', '2/5', '3/5'])
-    ax.set_xlabel('false alarms per year', fontsize=9)
-    ax.set_ylabel('eruptions detected', fontsize=9)
+    ax.set_xlabel('false alarms per year', fontsize=12)
+    ax.set_ylabel('eruptions detected', fontsize=12)
     style_ax(ax, ygrid=True)
-    ax.legend(loc='lower right', frameon=False, fontsize=7.2)
+    ax.legend(loc='lower right', frameon=False, fontsize=9.5)
     ax.set_title('(c) detection vs false-alarm\nfrontier', loc='left',
-                 fontsize=10, color=INK)
+                 fontsize=13.5, color=INK)
 
     fig.suptitle('An operational alert system for Whakaari, built from '
-                 'foreign data', x=0.005, ha='left', fontsize=13,
+                 'foreign data', x=0.005, ha='left', fontsize=17.5,
                  fontweight='bold', y=1.03)
     fig.text(0.005, 0.99,
              'Rule: alert when the 12/24-h consensus median exceeds a '
              'trailing-background quantile for a sustained period (strictly '
              'causal). Rule parameters tuned in-sample (see text); the '
              'Dec-2019 lead is robust across 134/240 settings.',
-             fontsize=8.6, color=INK2, va='top')
+             fontsize=11.5, color=INK2, va='top')
     fig.tight_layout(rect=[0, 0, 1, 0.975])
     save(fig, 'M4_operational_alerts')
 
